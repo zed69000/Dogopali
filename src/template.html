@@ -315,7 +315,10 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 .logo .l2{position:relative;margin-top:.5em;font-size:clamp(28px,7.5vw,60px);color:var(--berry);animation:drop .8s .6s cubic-bezier(.3,1.6,.5,1) both}
 .logo .l2 svg{position:absolute;left:50%;top:50%;width:150%;height:200%;transform:translate(-50%,-52%);z-index:-1;overflow:visible}
 .logo .l2 span{position:relative;padding:0 .4em}
-.logo .l2.tagl{font-size:clamp(15px,4.3vw,32px);white-space:nowrap;letter-spacing:.01em}
+.logo .l2.tagl{font-size:clamp(15px,4.3vw,32px);white-space:nowrap;letter-spacing:.01em;display:flex;align-items:center;color:var(--ink);font-family:'Baloo 2',var(--font);font-weight:800;line-height:1.1}
+.logo .l2.tagl span{padding:0 .3em}
+.logo .l2.tagl .pw{display:inline-block;width:.95em;height:.95em;position:relative}
+.logo .l2.tagl .pw svg{position:static;transform:none;z-index:auto;width:100%;height:100%;display:block}
 .logo .l2.tagl svg{width:118%;height:230%}
 .tag{margin:16px 0 0;display:inline-block;background:var(--sun);border:4px solid var(--ink);border-radius:99px;padding:3px 18px;font:800 clamp(17px,4.6vw,24px)/1.3 var(--font);box-shadow:0 5px 0 var(--ink);animation:drop .7s 1s cubic-bezier(.3,1.6,.5,1) both}
 .playbtn{display:flex;align-items:center;gap:12px;border:5px solid var(--ink);border-radius:99px;background:var(--leaf);color:#fff;font:400 clamp(34px,9vw,48px)/1 'Luckiest Guy','Baloo 2',var(--font);padding:14px 38px 10px 24px;box-shadow:0 9px 0 var(--ink);cursor:pointer;text-shadow:0 3px 0 rgba(59,42,30,.5);animation:drop .7s 1.3s cubic-bezier(.3,1.6,.5,1) both,breathe 1.6s 2.2s ease-in-out infinite}
@@ -618,10 +621,10 @@ document.querySelectorAll('[data-ico]').forEach(el => el.innerHTML = ICON[el.dat
    RACES
    ========================================================= */
 const BREEDS = {
-  beagle:{name:'Beagle', dog:'Biscotte', fem:true, level:2, size:0.95, collar:0x5aa9e6,
+  beagle:{name:'Beagle', dog:'Biscotte', fem:true, level:2, size:0.95, collar:0xd8402e, eyeK:1.18,
     coat:0xc98a45, belly:0xfaf3e6, chest:0xfaf3e6, legs:0xfaf3e6, thigh:0xc98a45, muz:0xfaf3e6, head:0xc98a45, ear:0x9a5f2a, nose:0x2a1d17, brow:0x8a5428,
-    saddle:0x2e2622, blaze:0xfaf3e6,
-    R:0.3, L:0.42, leg:0.17, hr:0.31, m:{len:0.15, r:0.125, w:1.12}, ears:'flop', earLen:0.38, earW:0.15, tail:'whip', tailColor:0x2e2622, tailTip:0xfaf3e6,
+    blaze:0xfaf3e6,
+    R:0.3, L:0.42, leg:0.17, hr:0.31, m:{len:0.15, r:0.125, w:1.12}, ears:'flop', earLen:0.38, earW:0.15, tail:'whip', tailColor:0xc98a45, tailTip:0xfaf3e6,
     rates:{faim:1.3},
     facts:{origine:'Angleterre', taille:'33 à 40 cm', poids:'9 à 14 kg', caractere:['Curieux','Joyeux','Gourmand'], besoins:{faim:3, jeu:2, proprete:1, calins:2},
       anecdote:'Son flair est si puissant qu’on lui confie parfois la surveillance des bagages dans les aéroports.'}},
@@ -728,7 +731,7 @@ function toon(c, rim = false) {
   if (!matCache[k]) { const m = new THREE.MeshToonMaterial({color:c, gradientMap:grad}); if (rim) m.onBeforeCompile = rimHook; matCache[k] = m; }
   return matCache[k];
 }
-const lineMat = new THREE.MeshBasicMaterial({color:0x3b2a1e, side:THREE.BackSide}); lineMat.visible = false;   // pas de contour
+const lineMat = new THREE.MeshBasicMaterial({color:0x3b2a1e, side:THREE.BackSide}); lineMat.visible = true;   // contour brun épais, comme l'affiche
 const basicCache = {};
 const basic = (c, o = 1) => basicCache[c + '_' + o] || (basicCache[c + '_' + o] = new THREE.MeshBasicMaterial({color:c, transparent:o < 1, opacity:o, depthWrite:o >= 1}));
 
@@ -787,7 +790,7 @@ function babyfy(b, g) {
   c.size = b.size * (0.55 + 0.45 * g); c.L = b.L * (1 - 0.3 * k); c.hr = b.hr * (1 + 0.24 * k);
   c.leg = b.leg * (1 - 0.22 * k); c.legT = (b.legT || 1) * (1 + 0.18 * k);
   c.m = {len:b.m.len * (1 - 0.45 * k), r:b.m.r * (1 - 0.04 * k), w:b.m.w};
-  c.earLen = b.earLen * (1 + 0.1 * k); c.earW = b.earW * (1 + 0.12 * k); c.eyeK = 1 + 0.22 * k;
+  c.earLen = b.earLen * (1 + 0.1 * k); c.earW = b.earW * (1 + 0.12 * k); c.eyeK = (b.eyeK || 1) * (1 + 0.22 * k);
   if (b.ears === 'erect' && g < 0.4) c.ears = 'fold';
   return c;
 }
@@ -883,7 +886,7 @@ function buildDogInner(key, b) {
   const neckFill = grp(spine, [0, R * 0.62, R * 0.55]); rig.neckFill = neckFill; rig.R = R; rig.hr = hr;
   ell(neckFill, R * 0.62, R * 0.72, R * 0.62, b.head, [0, 0, 0], {outline:false});
   const collar = mesh(neckFill, G('collar' + R, () => new THREE.TorusGeometry(R * 0.66, 0.034, 8, 28)), b.collar, {r:[-0.9, 0, 0], p:[0, -R * 0.05, -R * 0.02], ow:0.25});
-  ell(neckFill, 0.05, 0.05, 0.02, 0xffc94a, [0, -R * 0.62, R * 0.42], {ow:0.15});
+  ell(neckFill, 0.065, 0.065, 0.022, 0xffc94a, [0, -R * 0.64, R * 0.42], {ow:0.15});
   if (b.ruff) for (let i = 0; i < 11; i++) {
     const a = PI * 0.15 + i / 10 * PI * 0.7;
     ell(neckFill, R * 0.32, R * 0.32, R * 0.3, b.ruff, [Math.cos(a) * R * 0.62 * (i % 2 ? 1 : 0.9), -Math.sin(a) * R * 0.5 + R * 0.05, R * 0.25 + Math.sin(a) * R * 0.15], {ow:0.08});
@@ -1089,13 +1092,16 @@ const kennelWalls = [];
 { const kw = (w, h, dd, p) => { const m = mesh(kennel, new THREE.BoxGeometry(w, h, dd), 0xe8566b, {p, receive:true, ow:0.04}); kennelWalls.push(m); return m; };
   kw(1.5, 1.05, 0.1, [0, 0.52, -0.7]); kw(0.1, 1.05, 1.5, [-0.7, 0.52, 0]); kw(0.1, 1.05, 1.5, [0.7, 0.52, 0]);
   kw(0.41, 1.05, 0.1, [-0.545, 0.52, 0.7]); kw(0.41, 1.05, 0.1, [0.545, 0.52, 0.7]); kw(0.68, 0.43, 0.1, [0, 0.835, 0.7]);
-  mesh(kennel, new THREE.BoxGeometry(1.3, 0.04, 1.3), 0xb8475c, {outline:false, p:[0, 0.02, 0], receive:true});      // plancher
-  mesh(kennel, new THREE.BoxGeometry(1.3, 1.0, 0.02), 0xb04257, {outline:false, p:[0, 0.52, -0.64]});                  // fond un peu plus sombre (intérieur)
+  mesh(kennel, new THREE.BoxGeometry(1.3, 0.04, 1.3), 0xa8432e, {outline:false, p:[0, 0.02, 0], receive:true});      // plancher
+  mesh(kennel, new THREE.BoxGeometry(1.3, 1.0, 0.02), 0x9c3c28, {outline:false, p:[0, 0.52, -0.64]});                  // fond un peu plus sombre (intérieur)
   ell(kennel, 0.48, 0.07, 0.42, 0xfff1d6, [0, 0.08, -0.12], {outline:false});                                             // coussin
-  mesh(kennel, new THREE.BoxGeometry(1.5, 0.08, 1.5), 0xd84e63, {outline:false, p:[0, 1.06, 0]}); }
+  mesh(kennel, new THREE.BoxGeometry(1.5, 0.08, 1.5), 0xc84e34, {outline:false, p:[0, 1.06, 0]}); }
 const kennelBody = kennelWalls[0];
-[-1, 1].forEach(s => mesh(kennel, new THREE.BoxGeometry(1.15, 0.1, 1.8), 0xfff8ec, {p:[s * 0.42, 1.32, 0], r:[0, 0, s * -0.72], ow:0.05}));
-mesh(kennel, new THREE.BoxGeometry(0.62, 0.18, 0.05), 0xffc94a, {p:[0, 1.0, 0.78], ow:0.1});
+[-1, 1].forEach(s => { mesh(kennel, new THREE.BoxGeometry(1.15, 0.1, 1.8), 0xd8643e, {p:[s * 0.42, 1.32, 0], r:[0, 0, s * -0.72], ow:0.05});   // toit en tuiles
+  mesh(kennel, new THREE.BoxGeometry(1.19, 0.14, 0.09), 0xf2b36a, {p:[s * 0.42, 1.33, 0.9], r:[0, 0, s * -0.72], ow:0.06}); });   // bordure claire
+{ const bone = grp(kennel, [0, 0.98, 0.78]);   // l'os au-dessus de la porte
+  mesh(bone, new THREE.BoxGeometry(0.3, 0.08, 0.05), 0xfff8ec, {ow:0.12});
+  [-1, 1].forEach(sx => [-1, 1].forEach(sy => ell(bone, 0.06, 0.06, 0.035, 0xfff8ec, [sx * 0.16, sy * 0.04, 0], {ow:0.12}))); }
 const tree = grp(scene, [3.05, 0, -2.55]);
 mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8, 0]});
 [[0, 2.1, 0, 1.0], [-0.6, 1.75, 0.25, 0.7], [0.6, 1.8, -0.1, 0.75], [0.1, 2.7, -0.1, 0.65]].forEach(([x, y, z, r]) => ell(tree, r, r, r, 0x4fa046, [x, y, z], {ow:0.05}));
@@ -3685,10 +3691,10 @@ function stepTutorial() {
    ========================================================= */
 const TITLE = {on:false};
 function logoHTML() {
-  const cols = ['#e8566b', '#ffc94a', '#5fae4e', '#5aa9e6', '#ff8fb1', '#ffc94a', '#e8566b', '#5aa9e6'];
+  const cols = ['#e8566b', '#ffc94a', '#5fae4e', '#5aa9e6', '#ff8fb1', '#ffc94a', '#ff8fb1', '#5aa9e6'];
   const l1 = [...'DOGOPALI'].map((c, i) => `<span class="ch" data-ch="${c}" style="--c:${cols[i % cols.length]};--i:${i}">${c}</span>`).join('');
   const bone = `<svg viewBox="0 0 300 80" preserveAspectRatio="none"><path d="M40 18a18 18 0 1 1 18-10h184a18 18 0 1 1 18 10 18 18 0 1 1 0 44 18 18 0 1 1-18 10H58a18 18 0 1 1-18-10 18 18 0 1 1 0-44z" fill="#fff8ec" stroke="#3b2a1e" stroke-width="6" stroke-linejoin="round"/></svg>`;
-  return `<div class="l1">${l1}</div><div class="l2 tagl">${bone}<span>Every dog needs a friend.</span></div>`;
+  return `<div class="l1">${l1}</div><div class="l2 tagl">${bone}<i class="pw">${ICON.paw}</i><span>Every dog needs a friend.</span><i class="pw">${ICON.paw}</i></div>`;
 }
 function showStart() {
   const st = document.getElementById('start'); st.hidden = false; st.classList.remove('go');
@@ -4292,14 +4298,15 @@ function chestPop(p, first) {
 const COLS = [0xe8566b, 0x5aa9e6, 0xffc94a, 0x5fae4e, 0xb59cff, 0xff8fb1, 0xfff8ec];
 const NAMES = ['Biscuit', 'Praline', 'Noisette', 'Pistache', 'Cookie', 'Moka', 'Filou', 'Choco', 'Plume', 'Ficelle', 'Toupie', 'Mimosa', 'Caramel', 'Gribouille', 'Pépite', 'Nougat'];
 const hex = c => '#' + c.toString(16).padStart(6, '0');
-function applyKennel() { kennelWalls.forEach(w => w.material = toon(kennelCol ?? 0xe8566b)); }
+const KENNEL_COL = 0xd9583c;   // brique, comme l'affiche
+function applyKennel() { kennelWalls.forEach(w => w.material = toon(kennelCol ?? KENNEL_COL)); }
 applyKennel();
 function persoHTML() {
   const b = BREEDS[breed];
   return `<div class="perso"><div class="h">Personnaliser</div>
     <label class="nm">Son prénom <input id="dogName" maxlength="12" value="${esc(b.dog)}" autocomplete="off"></label><button class="pill" id="dice" aria-label="Prénom au hasard">${ICON.dice}</button>
     <div class="sw"><span>Collier</span>${COLS.map(c => `<button class="dot" data-col="${c}" style="background:${hex(c)}" aria-pressed="${b.collar === c}" aria-label="Couleur ${hex(c)}"></button>`).join('')}</div>
-    <div class="sw"><span>Niche</span>${COLS.map(c => `<button class="dot" data-kn="${c}" style="background:${hex(c)}" aria-pressed="${(kennelCol ?? 0xe8566b) === c}" aria-label="Couleur ${hex(c)}"></button>`).join('')}</div></div>`;
+    <div class="sw"><span>Niche</span>${[KENNEL_COL, ...COLS].map(c => `<button class="dot" data-kn="${c}" style="background:${hex(c)}" aria-pressed="${(kennelCol ?? KENNEL_COL) === c}" aria-label="Couleur ${hex(c)}"></button>`).join('')}</div></div>`;
 }
 function bindPerso(w) {
   const inp = w.querySelector('#dogName');
