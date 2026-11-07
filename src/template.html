@@ -291,6 +291,35 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 .titlecard p{margin:12px 0 0;font:800 20px var(--font);color:var(--ink);background:var(--sun);display:inline-block;border:3px solid var(--ink);border-radius:99px;padding:2px 16px}
 @keyframes fadein{from{opacity:0;transform:scale(.9)}}
 .errnote{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:400;background:#fff1d6;border:2px solid var(--ink);border-radius:10px;padding:6px 10px;font:600 12px/1.3 var(--font);color:var(--ink)}
+/* La croissance : un moment à part, plein écran */
+#growc{position:fixed;inset:0;z-index:250;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;overflow:hidden;
+  background:radial-gradient(circle at 50% 42%,#fff8e2 0,#ffdc8a 42%,#f6a75c 100%);animation:gcIn .45s ease both;font-family:var(--font);color:var(--ink)}
+#growc.out{animation:gcOut .35s ease forwards}
+#growc .rays{position:absolute;left:50%;top:42%;width:240vmax;height:240vmax;margin:-120vmax 0 0 -120vmax;pointer-events:none;opacity:.45;
+  background:repeating-conic-gradient(rgba(255,255,255,.75) 0 7deg,transparent 7deg 18deg);animation:gcSpin 16s linear infinite;transition:opacity .4s}
+#growc.pop .rays{opacity:.8;animation-duration:5s}
+#growc h2{position:relative;margin:0;font:400 clamp(30px,9vw,48px)/1 'Luckiest Guy','Baloo 2',var(--font);color:#fff;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 5px 0 var(--ink);animation:drop .7s .1s cubic-bezier(.3,1.6,.5,1) both}
+#growc .stagebox{position:relative;width:min(86vw,420px);aspect-ratio:1}
+#growc .ped{position:absolute;left:18%;right:18%;bottom:9%;height:12%;border-radius:50%;background:radial-gradient(#fff8ec,#f3dfba);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink)}
+#growc canvas.growcv{position:absolute;inset:0;width:100%!important;height:100%!important}
+#growc .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#growc.pop .flash{animation:gcFlash .5s ease-out}
+#growc .gc-badge{position:relative;display:flex;align-items:center;gap:10px;background:var(--cream);border:4px solid var(--ink);border-radius:99px;padding:4px 18px;box-shadow:0 5px 0 var(--ink);font-weight:800;font-size:clamp(18px,5vw,24px);animation:gcPop .5s cubic-bezier(.3,1.7,.5,1) both}
+#growc .gc-badge .now{color:var(--berry)}
+#growc .gc-what{position:relative;margin:0;font-weight:800;font-size:clamp(16px,4.4vw,20px);text-align:center;animation:gcPop .5s cubic-bezier(.3,1.7,.5,1) both}
+#growc .gc-rew{position:relative;display:flex;align-items:center;gap:8px;background:var(--sun);border:4px solid var(--ink);border-radius:99px;padding:2px 16px 2px 6px;box-shadow:0 5px 0 var(--ink);font-weight:800;font-size:26px;animation:gcPop .5s cubic-bezier(.3,1.7,.5,1) both}
+#growc .gc-rew svg{width:36px;height:36px}
+#growc .gc-cta{position:relative;animation:gcPop .5s cubic-bezier(.3,1.7,.5,1) both}
+#growc .conf i{position:absolute;top:-4vh;width:10px;height:16px;border-radius:3px;animation:gcFall linear forwards}
+#growc .burst{position:absolute;left:50%;top:44%;width:34px;height:34px;margin:-17px;pointer-events:none;animation:gcBurst .9s cubic-bezier(.2,.8,.3,1) forwards}
+#growc .burst svg{width:100%;height:100%}
+@keyframes gcIn{from{opacity:0}to{opacity:1}}
+@keyframes gcOut{to{opacity:0;transform:scale(1.04)}}
+@keyframes gcSpin{to{transform:rotate(360deg)}}
+@keyframes gcFlash{0%{opacity:.95}100%{opacity:0}}
+@keyframes gcPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes gcFall{to{transform:translate(var(--dx),112vh) rotate(var(--r))}}
+@keyframes gcBurst{0%{transform:translate(0,0) scale(.3);opacity:1}100%{transform:translate(var(--bx),var(--by)) scale(1.1) rotate(var(--r));opacity:0}}
 #boot{position:fixed;inset:0;z-index:300;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .8s ease;color-scheme:light}
 #boot.out{opacity:0;pointer-events:none}
 #boot .md{font-family:'Luckiest Guy','Baloo 2',system-ui,sans-serif;font-size:clamp(46px,14vw,104px);line-height:.95;text-align:center;letter-spacing:.02em;position:relative}
@@ -667,6 +696,21 @@ const BREEDS = {
     facts:{origine:'Écosse', taille:'46 à 56 cm', poids:'14 à 20 kg', caractere:['Très malin','Travailleur','Rapide'], besoins:{faim:2, jeu:3, proprete:2, calins:2},
       anecdote:'C’est le champion pour rassembler les moutons. On dit que c’est le chien le plus intelligent du monde.'}}
 };
+// Nouvelle DA (planches de modèle) : grosse tête, grands yeux, collier rouge et médaille en os, proportions trapues
+{ const B = BREEDS, RED = 0xd8402e, NOSE = 0x3b2418;
+  Object.assign(B.beagle, {R:0.33, L:0.44, leg:0.17, hr:0.43, m:{len:0.14, r:0.165, w:1.22}, earLen:0.8, earW:0.3, eyeK:1.22, collar:RED, saddle:0x7b4a2a, tailColor:0xc98a45, lowerFace:0xfaf3e6, nose:NOSE, noseK:0.8});
+  Object.assign(B.labrador, {coat:0xe9b558, head:0xe9b558, thigh:0xe9b558, legs:0xe9b558, tailColor:0xe9b558, ear:0xdfa64a, belly:0xfbe3b0, chest:0xfbe3b0, muz:0xfbe3b0, lowerFace:0xfbe3b0, brow:0xd09a48,
+    R:0.34, L:0.46, leg:0.18, hr:0.43, m:{len:0.15, r:0.17, w:1.22}, earLen:0.66, earW:0.28, eyeK:1.2, collar:RED, nose:NOSE, noseK:0.8});
+  Object.assign(B.bouledogue, {coat:0xe2b07c, head:0xe2b07c, thigh:0xe2b07c, legs:0xe2b07c, tailColor:0xe2b07c, ear:0xe2b07c, earIn:0xf2a9a0, belly:0xf6e6cf, chest:0xf6e6cf, muz:0x5a4030, mask:0x5a4030, blaze:0xf2d6b0,
+    R:0.36, L:0.36, leg:0.14, hr:0.45, m:{len:0.05, r:0.2, w:1.5}, earLen:0.5, earW:0.23, eyeK:1.2, collar:RED, nose:0x241812, noseK:0.85});
+  Object.assign(B.caniche, {coat:0xe6d0ab, belly:0xe6d0ab, chest:0xe6d0ab, legs:0xe6d0ab, thigh:0xe6d0ab, muz:0xecdab9, head:0xecdab9, ear:0xe6d0ab, fluff:0xead7b5, tailColor:0xe6d0ab, brow:0xd8c09a,
+    R:0.28, L:0.42, leg:0.2, hr:0.38, m:{len:0.17, r:0.12, w:1.05}, eyeK:1.25, collar:RED, nose:NOSE, noseK:0.85});
+  Object.assign(B.husky, {coat:0x55555e, head:0x55555e, thigh:0x55555e, ear:0x55555e, earIn:0xf2b2b0, tailColor:0x55555e, belly:0xf7f0e2, chest:0xf7f0e2, legs:0xf7f0e2, muz:0xf7f0e2, faceMask:0xf7f0e2, cheeks:0xf7f0e2, ruff:0xf7f0e2, tailTip:0xf7f0e2, brow:0xf7f0e2,
+    R:0.33, L:0.45, leg:0.18, hr:0.42, m:{len:0.16, r:0.14, w:1.1}, earLen:0.37, earW:0.17, eyeK:1.2, collar:RED, nose:0x241812, noseK:0.85});
+  delete B.husky.eyeColor;
+  Object.assign(B.collie, {coat:0x2c2826, head:0x2c2826, thigh:0x2c2826, ear:0x2c2826, earIn:0x6a4a44, cheeks:0x2c2826, tailColor:0x2c2826, belly:0xf7f0e2, chest:0xf7f0e2, legs:0xf7f0e2, muz:0xf7f0e2, blaze:0xf7f0e2, ruff:0xf7f0e2, tailTip:0xf7f0e2, lowerFace:0xf7f0e2,
+    R:0.32, L:0.44, leg:0.18, hr:0.42, m:{len:0.16, r:0.14, w:1.1}, earLen:0.38, earW:0.15, eyeK:1.2, collar:RED, nose:0x241812, noseK:0.85});
+}
 const ORDER = ['labrador','bouledogue','beagle','caniche','husky','collie'];
 
 /* =========================================================
@@ -760,6 +804,14 @@ function drop(len, w) {
   return G(`d${len}_${w}`, () => {
     const pts = [];
     for (let i = 14; i >= 0; i--) { const t = i / 14; pts.push(new THREE.Vector2(w * Math.sin(PI * Math.pow(t, 0.72)) + 1e-4, -len * t)); }
+    return new THREE.LatheGeometry(pts, 16);
+  });
+}
+// oreille tombante : fine à l'attache, large et ronde en bas (planches)
+function earDrop(len, w) {
+  return G(`e${len}_${w}`, () => {
+    const pts = [];
+    for (let i = 14; i >= 0; i--) { const t = i / 14; pts.push(new THREE.Vector2(w * Math.pow(Math.sin(PI * Math.pow(t, 1.7)), 0.8) + 1e-4, -len * t)); }
     return new THREE.LatheGeometry(pts, 16);
   });
 }
@@ -869,7 +921,7 @@ function buildDogInner(key, b) {
   const R = b.R, L = b.L, hr = b.hr, m = b.m, lt = b.legT || 1;
   const rig = {key, b, ears:[], markers:[], mud:[], legs:[], eyes:[], brows:[], arcs:[], blush:[]};
   const marker = (parent, p) => { const o = new THREE.Object3D(); o.position.set(...p); parent.add(o); rig.markers.push(o); return o; };
-  const up = b.leg, low = b.leg * 0.95, pawR = 0.085 * Math.sqrt(lt);
+  const up = b.leg, low = b.leg * 0.95, pawR = 0.105 * Math.sqrt(lt);
   const H = up + low + pawR * 0.6 + R * 0.45;
   const root = new THREE.Group(); root.scale.setScalar(b.size); rig.root = root;
   const rollP = grp(root, [0, H, 0]); const body = grp(rollP, [0, -H, 0]);
@@ -891,8 +943,11 @@ function buildDogInner(key, b) {
   // collier
   const neckFill = grp(spine, [0, R * 0.62, R * 0.55]); rig.neckFill = neckFill; rig.R = R; rig.hr = hr;
   ell(neckFill, R * 0.62, R * 0.72, R * 0.62, b.head, [0, 0, 0], {outline:false});
-  const collar = mesh(neckFill, G('collar' + R, () => new THREE.TorusGeometry(R * 0.66, 0.034, 8, 28)), b.collar, {r:[-0.9, 0, 0], p:[0, -R * 0.05, -R * 0.02], ow:0.25});
-  ell(neckFill, 0.065, 0.065, 0.022, 0xffc94a, [0, -R * 0.64, R * 0.42], {ow:0.15});
+  const collar = mesh(neckFill, G('collar' + R, () => new THREE.TorusGeometry(R * 0.68, 0.042, 8, 28)), b.collar, {r:[-0.9, 0, 0], p:[0, -R * 0.05, -R * 0.02], ow:0.22});
+  { const tag = grp(neckFill, [0, -R * 0.82, R * 0.66]); tag.scale.setScalar(1.5); rig.tag = tag;   // médaille en os, comme les planches
+    ell(tag, 0.012, 0.012, 0.012, 0xe0a92a, [0, 0.06, 0], {outline:false});
+    mesh(tag, G('tagbar', () => new THREE.BoxGeometry(0.05, 0.03, 0.02)), 0xffc94a, {ow:0.18});
+    [-1, 1].forEach(sx => [-1, 1].forEach(sy => ell(tag, 0.019, 0.019, 0.013, 0xffc94a, [sx * 0.027, sy * 0.013, 0], {ow:0.18}))); }
   if (b.ruff) for (let i = 0; i < 11; i++) {
     const a = PI * 0.15 + i / 10 * PI * 0.7;
     ell(neckFill, R * 0.32, R * 0.32, R * 0.3, b.ruff, [Math.cos(a) * R * 0.62 * (i % 2 ? 1 : 0.9), -Math.sin(a) * R * 0.5 + R * 0.05, R * 0.25 + Math.sin(a) * R * 0.15], {ow:0.08});
@@ -907,6 +962,7 @@ function buildDogInner(key, b) {
   if (b.blaze) ell(head, hr * 0.17, hr * 0.86, hr * 0.55, b.blaze, [0, hr * 0.12, hr * 0.5], {outline:false});
   if (b.faceMask) { ell(head, hr * 0.84, hr * 0.56, hr * 0.62, b.faceMask, [0, -hr * 0.28, hr * 0.4], {outline:false});
     [-1, 1].forEach(s => ell(head, hr * 0.13, hr * 0.09, hr * 0.06, b.faceMask, [s * hr * 0.36, hr * 0.42, hr * 0.85], {outline:false})); }
+  if (b.lowerFace) ell(head, hr * 0.66, hr * 0.44, hr * 0.5, b.lowerFace, [0, -hr * 0.36, hr * 0.5], {outline:false});
   if (b.cheeks) [-1, 1].forEach(s => ell(head, hr * 0.42, hr * 0.38, hr * 0.38, b.cheeks, [s * hr * 0.62, -hr * 0.36, hr * 0.12], {ow:0.05}));
   if (b.fluff) fluff(head, [0, hr * 0.8, -hr * 0.05], hr * 0.62, b.fluff, 14);
   if (b.wrinkles) [0, 1].forEach(i => mesh(head, G('wr' + i, () => new THREE.TorusGeometry(hr * (0.16 + i * 0.07), 0.009, 4, 14, PI * 0.7)), basic(0x8a5c38), {outline:false, shadow:false, p:[0, hr * (0.6 + i * 0.1), hr * (0.76 - i * 0.07)], r:[-0.7 - i * 0.2, 0, PI * 0.15]}));
@@ -916,7 +972,7 @@ function buildDogInner(key, b) {
   mesh(head, along(m.r * 1.05, m.r * 0.92, m.len), b.muz, {s:[m.w, 0.92, 1], p:[0, my, mz]});
   if (b.mask && b.muz !== b.mask) ell(head, m.r * m.w * 1.1, m.r, m.r, b.mask, [0, my, mz + m.len * 0.5]);
   const tip = mz + m.len + m.r * 0.85;
-  const nose = ell(head, m.r * 0.52 * Math.min(m.w, 1.25), m.r * 0.38, m.r * 0.34, b.nose, [0, my + m.r * 0.52, tip - m.r * 0.08], {outline:false}); rig.nose = nose;
+  const nk = b.noseK || 1, nose = ell(head, m.r * 0.52 * Math.min(m.w, 1.25) * nk, m.r * 0.38 * nk, m.r * 0.34 * nk, b.nose, [0, my + m.r * 0.52, tip - m.r * 0.08], {outline:false}); rig.nose = nose;
   ell(nose, 0.28, 0.25, 0.3, basic(0xffffff, 0.85), [0.3, 0.45, 0.6], {outline:false, shadow:false});
   // petite bouche en « w »
   [-1, 1].forEach(s => mesh(head, G('mouth' + m.r, () => new THREE.TorusGeometry(m.r * 0.26, 0.008, 4, 10, PI)), basic(0x3b2a1e), {outline:false, shadow:false, p:[s * m.r * 0.26, my - m.r * 0.3, tip - m.r * 0.18], r:[0.2, 0, PI]}));
@@ -930,19 +986,19 @@ function buildDogInner(key, b) {
   Object.assign(rig, {jaw, tPivot, tongue, mouthM});
 
   // yeux
-  const er = hr * 0.18 * (b.eyeK || 1);
+  const er = hr * 0.2 * (b.eyeK || 1);
   [-1, 1].forEach(s => {
-    const d = new V3(s * 0.43, 0.13, 0.89).normalize();
+    const d = new V3(s * 0.5, 0.1, 0.86).normalize();   // yeux plus écartés (planches)
     const eg = grp(head, d.clone().multiplyScalar(hr * 0.92).toArray());
     eg.rotation.order = 'YXZ'; eg.rotation.set(-Math.asin(d.y), Math.atan2(d.x, d.z), 0);
     const ball = grp(eg);
     if (b.eyeColor) { ell(ball, er, er * 1.15, er * 0.5, b.eyeColor, [0, 0, 0], {ow:0.12}); ell(ball, er * 0.55, er * 0.66, er * 0.32, 0x14100e, [0, 0, er * 0.28], {outline:false}); }
-    else ell(ball, er, er * 1.15, er * 0.5, 0x14100e, [0, 0, 0], {ow:0.1});
-    ell(ball, er * 0.34, er * 0.36, er * 0.2, basic(0xffffff), [er * 0.32, er * 0.42, er * 0.42], {outline:false, shadow:false});
-    ell(ball, er * 0.15, er * 0.15, er * 0.1, basic(0xffffff), [-er * 0.34, -er * 0.38, er * 0.44], {outline:false, shadow:false});
+    else ell(ball, er, er * 1.12, er * 0.5, 0x2a1912, [0, 0, 0], {ow:0.1});
+    ell(ball, er * 0.42, er * 0.44, er * 0.2, basic(0xffffff), [er * 0.3, er * 0.4, er * 0.42], {outline:false, shadow:false});
+    ell(ball, er * 0.17, er * 0.17, er * 0.1, basic(0xffffff), [-er * 0.36, -er * 0.4, er * 0.44], {outline:false, shadow:false});
     const arc = mesh(eg, G('arc' + er, () => new THREE.TorusGeometry(er * 0.75, er * 0.16, 6, 14, PI)), basic(0x14100e), {outline:false, shadow:false, p:[0, -er * 0.25, er * 0.15]});
     arc.visible = false;
-    const brow = mesh(eg, G('brow' + er, () => taper(er * 0.2, er * 0.2, er * 1.0).clone().rotateZ(PI / 2).translate(er * 0.5, 0, 0)), b.brow, {outline:false, p:[0, er * 1.55, er * 0.05]});
+    const brow = mesh(eg, G('brow' + er, () => taper(er * 0.12, er * 0.12, er * 0.9).clone().rotateZ(PI / 2).translate(er * 0.45, 0, 0)), b.brow, {outline:false, p:[0, er * 1.55, er * 0.05]});
     const blush = ell(eg, er * 0.85, er * 0.45, er * 0.2, basic(0xff7d95, 0.45), [s * er * 0.25, -er * 1.6, -er * 0.12], {outline:false, shadow:false});
     rig.eyes.push(ball); rig.arcs.push(arc); rig.brows.push({brow, s}); rig.blush.push(blush);
   });
@@ -951,8 +1007,8 @@ function buildDogInner(key, b) {
   const earPivot = (p, rest, stiff) => { const pv = grp(head, p); const e = {pv, rx:rest[0], rz:rest[1], x:rest[0], z:rest[2] ?? rest[1], vx:0, vz:0, stiff, s:Math.sign(p[0])}; e.z = rest[1]; rig.ears.push(e); return pv; };
   [-1, 1].forEach(s => {
     if (b.ears === 'flop') {
-      const pv = earPivot([s * hr * 0.86, hr * 0.36, hr * 0.02], [-0.12, s * 0.32], 0);
-      mesh(pv, drop(b.earLen, b.earW), b.ear, {s:[0.36, 1, 1], p:[s * 0.035, 0.03, 0], ow:0.07});
+      const pv = earPivot([s * hr * 0.78, hr * 0.62, -hr * 0.06], [-0.1, s * 0.38], 0);
+      mesh(pv, earDrop(b.earLen, b.earW), b.ear, {s:[0.34, 1, 1], p:[s * 0.035, -0.03, 0], ow:0.06});
     } else if (b.ears === 'erect') {
       const pv = earPivot([s * hr * 0.46, hr * 0.68, -hr * 0.12], [-0.12, -s * 0.3], 1);
       mesh(pv, G('cone' + b.earW, () => new THREE.ConeGeometry(b.earW, b.earLen, 16).translate(0, b.earLen / 2, 0)), b.ear, {s:[1, 1, 0.42]});
@@ -978,9 +1034,9 @@ function buildDogInner(key, b) {
     const u = grp(parent, p);
     if (hind) ell(u, R * 0.48, R * 0.62, R * 0.56, b.thigh, [0, -0.02, 0], {ow:0.05});
     else ell(u, R * 0.36, R * 0.45, R * 0.4, b.coat, [0, -0.01, 0], {outline:false});
-    mesh(u, limb(0.074 * lt, 0.062 * lt, up), b.legs, {ow:0.08});
+    mesh(u, limb(0.092 * lt, 0.082 * lt, up), b.legs, {ow:0.08});
     const l = grp(u, [0, -up, 0]);
-    mesh(l, limb(0.062 * lt, 0.058 * lt, low), b.legs, {ow:0.08});
+    mesh(l, limb(0.082 * lt, 0.078 * lt, low), b.legs, {ow:0.08});
     ell(l, pawR, pawR * 0.62, pawR * 1.25, b.legs, [0, -low - pawR * 0.05, 0.025]);
     if (b.fluff) fluff(l, [0, -low * 0.72, 0], 0.085, b.fluff, 8, 0.12);
     (rig.paws ||= []).push(marker(l, [0, -low - pawR * 0.62, 0.025]));
@@ -994,8 +1050,8 @@ function buildDogInner(key, b) {
   // queue
   const tail = grp(hips, [0, R * 0.48, -R * 0.82]); rig.tail = tail;
   const tc = b.tailColor;
-  if (b.tail === 'whip') { rig.tailRest = -0.55; mesh(tail, taper(0.05, 0.038, 0.32), tc); ell(tail, 0.06, 0.08, 0.06, b.tailTip, [0, 0.36, 0]); }
-  else if (b.tail === 'otter') { rig.tailRest = -1.95; mesh(tail, taper(0.085, 0.032, 0.42), tc); }
+  if (b.tail === 'whip') { rig.tailRest = -0.55; mesh(tail, taper(0.07, 0.055, 0.32), tc); ell(tail, 0.075, 0.1, 0.075, b.tailTip, [0, 0.36, 0]); }
+  else if (b.tail === 'otter') { rig.tailRest = -1.95; mesh(tail, taper(0.1, 0.05, 0.42), tc); }
   else if (b.tail === 'stub') { rig.tailRest = -0.9; ell(tail, 0.065, 0.08, 0.065, tc, [0, 0.05, 0]); }
   else if (b.tail === 'pompom') { rig.tailRest = -0.35; mesh(tail, taper(0.035, 0.03, 0.2), tc); fluff(tail, [0, 0.26, 0], 0.11, b.fluff, 10); }
   else if (b.tail === 'curl') { rig.tailRest = -0.25; const tg = grp(tail, [0, 0.16, 0.03], [0, PI / 2, 0]);
@@ -2713,16 +2769,75 @@ function setBreed(key) {
   setTimeout(() => { say('Wouf !'); jump(5); }, 400); save();
 }
 // Il a grandi ! Le chien est reconstruit à son nouvel âge puis « pousse » d'un coup avec un rebond
+// LA CROISSANCE : un moment à part. Le chiot seul sur un socle, il tremble de plus en plus vite, pop !
+// il grandit sous nos yeux (rebond élastique), confettis, fanfare, il est fou de joie, puis la récompense.
+const GROWC = {on:false};
+function growCeremony(o) {
+  const {r2, sc, cam, box, sz} = PR; if (!r2) { o.done && o.done(); return; }
+  GROWC.on = true;
+  const el = document.createElement('div'); el.id = 'growc';
+  el.innerHTML = `<div class="rays"></div><h2>${esc(o.name)} grandit !</h2><div class="stagebox"><div class="ped"></div></div><div class="flash"></div><div class="conf"></div>`;
+  document.body.appendChild(el);
+  const stage = el.querySelector('.stagebox'), cv = r2.domElement; r2.setSize(512, 512, false); cv.classList.add('growcv'); stage.appendChild(cv);
+  const oldR = buildDog(o.key, o.oldG), newR = buildDog(o.key, o.newG);
+  if (o.acc) { dress(oldR, o.acc); dress(newR, o.acc); }
+  const sOld = oldR.root.scale.x, sNew = newR.root.scale.x;
+  [oldR, newR].forEach(rg => { applyJ(rg, blankJ()); rg.root.updateMatrixWorld(true); rg.root.position.y = -groundOffset(rg); rg.base = rg.root.position.y; });
+  newR.root.visible = false; sc.add(oldR.root, newR.root);
+  newR.root.updateMatrixWorld(true); box.setFromObject(newR.root); box.getSize(sz);
+  const d = Math.max(sz.x, sz.y, sz.z) * 3.0, look = new V3(0, sz.y * 0.55, 0);
+  const add = (cls, html) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; el.insertBefore(e, el.querySelector('.flash')); return e; };
+  const confetti = n => { const box2 = el.querySelector('.conf'), cols = ['#e8566b', '#ffc94a', '#5fae4e', '#5aa9e6', '#ff8fb1', '#fff8ec', '#b59cff'];
+    for (let i = 0; i < n; i++) { const q = document.createElement('i'); q.style.left = (Math.random() * 100) + '%'; q.style.background = cols[i % cols.length];
+      q.style.setProperty('--dx', ((Math.random() - 0.5) * 30) + 'vw'); q.style.setProperty('--r', ((Math.random() - 0.5) * 1440) + 'deg');
+      q.style.animationDuration = (1.8 + Math.random() * 1.6) + 's'; q.style.animationDelay = (Math.random() * 0.35) + 's'; box2.appendChild(q); setTimeout(() => q.remove(), 4000); } };
+  const burst = n => { for (let i = 0; i < n; i++) { const a = i / n * PI * 2, r = 120 + Math.random() * 90, b = document.createElement('div'); b.className = 'burst';
+      b.innerHTML = i % 3 ? ICON.star : ICON.calins; b.style.setProperty('--bx', Math.cos(a) * r + 'px'); b.style.setProperty('--by', Math.sin(a) * r + 'px'); b.style.setProperty('--r', ((Math.random() - 0.5) * 360) + 'deg');
+      el.appendChild(b); setTimeout(() => b.remove(), 1000); } };
+  const POP = 1.9, T0 = performance.now(); let popped = false, raf = 0, nextTic = 0.15, shown = 0, closed = false;
+  const elastic = u => u >= 1 ? 1 : 1 - Math.pow(2, -9 * u) * Math.cos(u * PI * 2 * 1.35);
+  const close = () => { if (closed) return; closed = true; S.toc(3); const rw = el.querySelector('.gc-rew'), rr = rw && rw.getBoundingClientRect();
+    el.classList.add('out'); setTimeout(() => { cancelAnimationFrame(raf); sc.remove(oldR.root, newR.root); cv.classList.remove('growcv'); cv.remove(); r2.setSize(320, 320, false); el.remove(); GROWC.on = false;
+      if (o.reward) earnAt(o.reward, rr ? {x:rr.left + rr.width / 2, y:rr.top + rr.height / 2} : {x:W / 2, y:H / 2}); o.done && o.done(); }, 340); };
+  const tick = now => {
+    raf = requestAnimationFrame(tick);
+    try {
+      const t = (now - T0) / 1000, yaw = 0.55 * Math.sin(t * 0.55) + 0.25;
+      cam.position.set(Math.sin(yaw) * d, look.y + d * 0.16, Math.cos(yaw) * d); cam.lookAt(look);
+      const J = blankJ();
+      if (t < POP) {   // suspense : il tremble de plus en plus vite
+        const k = t / POP, f = 10 + 34 * k * k, a = 0.02 + 0.07 * k;
+        oldR.root.rotation.z = Math.sin(t * f) * a; oldR.root.scale.setScalar(sOld * (1 + 0.05 * k * Math.abs(Math.sin(t * f * 0.5))));
+        J.browUp = k; J.joy = 0.3; J.jaw = 0.1 + 0.25 * k; applyJ(oldR, J);
+        if (t > nextTic) { S.toc(Math.floor(k * 5)); nextTic = t + 0.26 - 0.18 * k; }
+      } else {
+        if (!popped) { popped = true; oldR.root.visible = false; newR.root.visible = true; el.classList.add('pop');
+          S.whooshBig(); S.fanfare(); S.sparkle(10); buzz([30, 40, 60]); confetti(70); burst(14); speak(`${o.name} a grandi !`); }
+        const u = Math.min(1, (t - POP) / 0.9), sc0 = sOld / sNew * 0.92;
+        newR.root.scale.setScalar(sNew * (sc0 + (1 - sc0) * elastic(u)));
+        const h = t - POP;   // fou de joie : yeux fermés de bonheur, langue, queue qui remue, petits sauts
+        J.happyEyes = h > 0.5 && (h % 2.2) < 1.4; J.joy = 1; J.blush = 1; J.jaw = 0.45; J.tongue = 0.75; J.tailWag = Math.sin(t * 18) * 0.7; J.headTilt = Math.sin(t * 3) * 0.15;
+        applyJ(newR, J); newR.root.position.y = newR.base + (h > 0.7 && h < 2.3 ? Math.abs(Math.sin((h - 0.7) * PI * 1.9)) * 0.14 * sNew : 0);
+        if (h > 0.6 && shown < 1) { shown = 1; add('gc-badge', `<span>${o.fromSt}</span><b>➜</b><span class="now">${o.toSt}</span>`); S.toc(4); }
+        if (h > 1.1 && shown < 2) { shown = 2; add('gc-what', o.what); }
+        if (h > 1.6 && shown < 3) { shown = 3; add('gc-rew', `${ICON.coin}<b>+${o.reward}</b>`); S.coin(o.reward); S.sparkle(5); confetti(30); }
+        if (h > 2.1 && shown < 4) { shown = 4; const b = add('cta gc-cta', 'Trop bien !'); b.setAttribute('role', 'button'); b.onclick = close; }
+      }
+      r2.render(sc, cam);
+    } catch (e) { reportError(e); close(); }
+  };
+  raf = requestAnimationFrame(tick);
+}
 function grow(d) {
-  const b = BREEDS[breed], old = rig.b.size, wasAdult = (seen[breed] ?? 0) >= ADULT_DAY, before = portrait(breed, AGE_G, {acc:accessory, fixed:true}), fromSt = stageOf(seen[breed] ?? 0);
+  const b = BREEDS[breed], old = rig.b.size, wasAdult = (seen[breed] ?? 0) >= ADULT_DAY, sv0 = seen[breed] ?? 0, fromSt = stageOf(sv0);
   seen[breed] = d; AGE_G = growthOf(d);
   rig.root.parent && rig.root.parent.remove(rig.root); rig = buildDog(breed, AGE_G); dress(rig, accessory); world().add(rig.root);
   D.ground = null; D.grow = {t:-0.35, from:old / rig.b.size};
   chipText(); save();
-  const after = portrait(breed, AGE_G, {acc:accessory, fixed:true}), toSt = stageOf(d);
+  const toSt = stageOf(d);
   const what = toSt === 'Petit' ? 'Ses pattes et son museau ont poussé !' : toSt === 'Ado' ? 'Il est plus grand et plus rapide !' : 'Il est devenu un grand chien !';
-  setTimeout(() => whenFree(() => { modalEl.innerHTML = `<div class="gift growc" role="dialog" aria-label="${b.dog} a grandi"><h2>${b.dog} a grandi !</h2><div class="ba"><figure><img src="${before}" alt=""><figcaption>${fromSt}</figcaption></figure><b>➜</b><figure class="now"><img src="${after}" alt=""><figcaption>${toSt}</figcaption></figure></div><p>${what}</p><button class="cta">Youpi !</button></div>`;
-    modalEl.hidden = false; S.fanfare(); S.sparkle(8); speak(`${b.dog} a grandi !`); modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); }; }), 2200);
+  const reward = toSt === 'Petit' ? 40 : toSt === 'Ado' ? 70 : 120, oldG = growthOf(sv0);
+  setTimeout(() => whenFree(() => growCeremony({key:breed, name:b.dog, fromSt, toSt, what, oldG, newG:AGE_G, acc:accessory, reward})), 900);
   S.fanfare(); setTimeout(() => { say('Youpi !', 'big'); jump(6); }, 900);
   rig.head.localToWorld(headTop.set(0, 0.3, 0)); for (let i = 0; i < 10; i++) setTimeout(() => floatIcon(headTop, i % 2 ? 'star' : 'calins', i % 3 === 0), 400 + i * 70);
 }
@@ -5682,7 +5797,7 @@ function frameBody(now) {
   _t = pfT('world', _t); camera.position.copy(camPos); camera.lookAt(camLook);
   clouds.forEach((c, i) => { c.position.x += dt * (0.3 + i * 0.05); if (c.position.x > 30) c.position.x = -30; });
   scene.updateMatrixWorld(); updateFurMask(rig); npcs.forEach(n => updateFurMask(n.rig));
-  _t = pfT('pre', _t); renderPost(mode === 'walk' ? WK.sc : scene); _t = pfT('render', _t);
+  _t = pfT('pre', _t); if (!GROWC.on) renderPost(mode === 'walk' ? WK.sc : scene); _t = pfT('render', _t);
   if (PHOTO.want) { const f = PHOTO.want; PHOTO.want = null; f(renderer.domElement); }
   updateBubble(); if (tutStep !== 3) updateHint(); updateHud(); stepCineUI();
   if (rig) { rig.head.getWorldPosition(tmpV); S.pan = (toScreen(tmpV).x / W) * 2 - 1; }
@@ -5693,6 +5808,18 @@ function frameBody(now) {
 }
 applyQuality();
 requestAnimationFrame(frame);
-window.__dbg = {prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+// outil de dev : un chien rendu de face, de profil et de 3/4 (planches de modèle), avec une expression J au choix
+function modelSheet(key, g = 1, over = {}, size = 360) {
+  const {r2, sc, cam, box, c, sz} = PR; if (!r2) return [];
+  r2.setSize(size, size, false); cam.aspect = 1; cam.updateProjectionMatrix();
+  const rg = buildDog(key, g); sc.add(rg.root); const J = Object.assign(blankJ(), over); applyJ(rg, J);
+  rg.root.rotation.y = 0; rg.root.updateMatrixWorld(true); rg.root.position.y = -groundOffset(rg); rg.root.updateMatrixWorld(true);
+  box.setFromObject(rg.root); box.getCenter(c); box.getSize(sz); const d = Math.max(sz.x, sz.y, sz.z) * 2.1, look = c.clone();
+  const out = [[0, 0.12], [PI / 2, 0.05], [0.75, 0.3]].map(([a, el]) => {
+    cam.position.set(look.x + Math.sin(a) * d, look.y + d * el, look.z + Math.cos(a) * d); cam.lookAt(look);
+    r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
+  sc.remove(rg.root); return out;
+}
+window.__dbg = {modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
