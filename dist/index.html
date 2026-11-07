@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dogopali</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -567,7 +571,7 @@ body.customizing #hud,body.customizing #side,body.customizing #actions,body.cust
 <div id="combo" hidden></div>
 <div id="sleepDim" hidden><div class="sd"><div class="moon"></div><b id="sdTitle"></b><p>C'est le moment de fermer le jeu.<br>Reviens quand il sera reposé !</p><button class="cta grey" id="sdWake"></button></div></div>
 <div id="bathSteps" hidden></div>
-<div id="start" hidden><div><div class="logo" id="logo" role="img" aria-label="Dogopali — Every dog needs a friend."></div><div class="tag" id="startTag"></div></div><button class="playbtn" id="startBtn"></button><div id="ver">version 52 · 7/11</div></div>
+<div id="start" hidden><div><div class="logo" id="logo" role="img" aria-label="Dogopali — Every dog needs a friend."></div><div class="tag" id="startTag"></div></div><button class="playbtn" id="startBtn"></button><div id="ver">version 53 · 7/11</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -5035,7 +5039,7 @@ function openOptions() {
     ${row('oSound', 'Son', S.isOn())}${row('oFur', 'Fourrure (plus joli, plus lourd)', FUR.on)}${row('oTilt', 'Effet maquette (flou en haut et en bas)', POST.on)}${row('oVoice', 'Lecture à voix haute', voiceOn)}
     <div class="mrow"><div class="mt"><b>Zoom de la caméra</b><small style="display:block;font-weight:600;opacity:.7">Pince l'écran avec deux doigts</small></div><button class="tog" id="oZoom">Normal</button></div>
     <div class="danger"><button class="cta red" id="oReset">Recommencer la partie</button><div id="oConfirm" hidden><p>Tout recommencer depuis le début ? ${dogN()}, tes pièces et tes progrès seront effacés.</p><div class="row2"><button class="cta red" id="oYes">Oui, recommencer</button><button class="cta" id="oNo">Non</button></div></div></div>
-    <button class="cta" id="oOk">Fermer</button><div class="optver">Dogopali · version 52 · 7/11</div></div>`;
+    <button class="cta" id="oOk">Fermer</button><div class="optver">Dogopali · version 53 · 7/11</div></div>`;
   modalEl.hidden = false;
   const tg = (id, f) => { const b = document.getElementById(id); b.onclick = () => { const v = f(); b.setAttribute('aria-pressed', v); b.textContent = v ? 'Oui' : 'Non'; S.toc(1); }; };
   tg('oSound', () => { S.unlock(); S.toggle(); soundIcon(); return S.isOn(); });
