@@ -603,6 +603,9 @@ body.customizing #hud,body.customizing #side,body.customizing #actions,body.cust
 <div id="bathSteps" hidden></div>
 <div id="start" hidden><div><div class="logo" id="logo" role="img" aria-label="Dogopali — Every dog needs a friend."></div><div class="tag" id="startTag"></div></div><button class="playbtn" id="startBtn"></button><div id="ver">__VERSION__</div></div>
 
+<script>__BUGREPORT__</script>
+<script>BugReport.init({ id: 'nourrice-de-chiens', version: '__VNUM__', scene: () => document.body.dataset.mode || '',
+  theme: { bg: '#fff8ec', fg: '#3b2a1e', muted: '#7a6656', accent: '#e8566b', accentFg: '#ffffff', font: "'Baloo 2','Trebuchet MS',system-ui,sans-serif", radius: '22px' } });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const PHOTOS = __PHOTOS__;
@@ -5156,7 +5159,7 @@ function openOptions() {
     ${row('oSound', 'Son', S.isOn())}${row('oFur', 'Fourrure (plus joli, plus lourd)', FUR.on)}${row('oTilt', 'Effet maquette (flou en haut et en bas)', POST.on)}${row('oVoice', 'Lecture à voix haute', voiceOn)}
     <div class="mrow"><div class="mt"><b>Zoom de la caméra</b><small style="display:block;font-weight:600;opacity:.7">Pince l'écran avec deux doigts</small></div><button class="tog" id="oZoom">Normal</button></div>
     <div class="danger"><button class="cta red" id="oReset">Recommencer la partie</button><div id="oConfirm" hidden><p>Tout recommencer depuis le début ? ${dogN()}, tes pièces et tes progrès seront effacés.</p><div class="row2"><button class="cta red" id="oYes">Oui, recommencer</button><button class="cta" id="oNo">Non</button></div></div></div>
-    <button class="cta" id="oOk">Fermer</button><div class="optver">Dogopali · __VERSION__</div></div>`;
+    <button class="cta grey" id="oBug">Signaler un bug ou une idée</button><button class="cta" id="oOk">Fermer</button><div class="optver">Dogopali · __VERSION__</div></div>`;
   modalEl.hidden = false;
   const tg = (id, f) => { const b = document.getElementById(id); b.onclick = () => { const v = f(); b.setAttribute('aria-pressed', v); b.textContent = v ? 'Oui' : 'Non'; S.toc(1); }; };
   tg('oSound', () => { S.unlock(); S.toggle(); soundIcon(); return S.isOn(); });
@@ -5168,6 +5171,7 @@ function openOptions() {
   document.getElementById('oNo').onclick = () => { S.toc(0); document.getElementById('oReset').hidden = false; document.getElementById('oConfirm').hidden = true; };
   document.getElementById('oYes').onclick = () => { RESETTING = true; try { ['nounou-proto-v3', 'nounou-photos'].forEach(k => localStorage.removeItem(k)); } catch (e) {} S.whooshBig(); setTimeout(() => location.reload(), 350); };
   document.getElementById('oOk').onclick = () => { modalEl.hidden = true; S.toc(3); setTimeout(showNextGift, 300); };
+  document.getElementById('oBug').onclick = () => { modalEl.hidden = true; S.toc(3); setTimeout(() => BugReport.open(), 60); };
 }
 document.getElementById('btnOpt').innerHTML = ICON.gear;
 document.getElementById('btnOpt').onclick = () => { S.unlock(); if (modalEl.hidden) openOptions(); };
