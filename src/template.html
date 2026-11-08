@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="fr">
 <meta charset="utf-8">
+<!-- studio kit (bug reports): served by the catalog, set up by kit.json next to this page -->
+<script src="https://games-catalog.sebastienalzamora.workers.dev/kit/kit.js" async></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dogopali</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -603,9 +605,7 @@ body.customizing #hud,body.customizing #side,body.customizing #actions,body.cust
 <div id="bathSteps" hidden></div>
 <div id="start" hidden><div><div class="logo" id="logo" role="img" aria-label="Dogopali — Every dog needs a friend."></div><div class="tag" id="startTag"></div></div><button class="playbtn" id="startBtn"></button><div id="ver">__VERSION__</div></div>
 
-<script>__BUGREPORT__</script>
-<script>BugReport.init({ id: 'nourrice-de-chiens', version: '__VNUM__', scene: () => document.body.dataset.mode || '',
-  theme: { bg: '#fff8ec', fg: '#3b2a1e', muted: '#7a6656', accent: '#e8566b', accentFg: '#ffffff', font: "'Baloo 2','Trebuchet MS',system-ui,sans-serif", radius: '22px' } });</script>
+<script>/* read by the studio kit */ window.GAME_VERSION = '__VNUM__'; window.GameKit = { scene: () => document.body.dataset.mode || '' };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const PHOTOS = __PHOTOS__;
@@ -5171,7 +5171,7 @@ function openOptions() {
   document.getElementById('oNo').onclick = () => { S.toc(0); document.getElementById('oReset').hidden = false; document.getElementById('oConfirm').hidden = true; };
   document.getElementById('oYes').onclick = () => { RESETTING = true; try { ['nounou-proto-v3', 'nounou-photos'].forEach(k => localStorage.removeItem(k)); } catch (e) {} S.whooshBig(); setTimeout(() => location.reload(), 350); };
   document.getElementById('oOk').onclick = () => { modalEl.hidden = true; S.toc(3); setTimeout(showNextGift, 300); };
-  document.getElementById('oBug').onclick = () => { modalEl.hidden = true; S.toc(3); setTimeout(() => BugReport.open(), 60); };
+  document.getElementById('oBug').onclick = () => { modalEl.hidden = true; S.toc(3); setTimeout(() => window.BugReport && BugReport.open(), 60); };
 }
 document.getElementById('btnOpt').innerHTML = ICON.gear;
 document.getElementById('btnOpt').onclick = () => { S.unlock(); if (modalEl.hidden) openOptions(); };

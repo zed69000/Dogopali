@@ -7,9 +7,10 @@ photos = (root / 'src/photos.json').read_text()
 v = (root / 'version.txt').read_text().strip()
 d = datetime.date.today()
 t = t.replace('__VERSION__', 'version %s · %d/%d' % (v, d.day, d.month)).replace('__PHOTOS__', photos)
-# bug reports of the testers (copied as is from games-catalog/client/bugreport.js)
-t = t.replace('__BUGREPORT__', (root / 'src/bugreport.js').read_text()).replace('__VNUM__', v)
+t = t.replace('__VNUM__', v)
 out = root / 'dist/index.html'; out.parent.mkdir(exist_ok=True); out.write_text(t)
+# manifest of the studio kit (bug reports), read next to the page: keep it with index.html when deploying
+(root / 'dist/kit.json').write_text((root / 'src/kit.json').read_text())
 js = re.findall(r'<script>(.*?)</script>', t, re.S)[-1]
 chk = root / 'dist/.chk.js'; chk.write_text(js)
 r = subprocess.run(['node', '--check', str(chk)], capture_output=True, text=True); chk.unlink()
