@@ -2703,7 +2703,11 @@ function camGoal() {
   if (performance.now() < CAMO.until && (mode === 'cuddle' || mode === 'play')) return [CAMO.pos, CAMO.look];
   if (DIG.mound && (mode === 'cuddle' || mode === 'play')) { const f = DIG.mound.position.clone().setY(0.2); return [f.clone().add(W / H < 0.9 ? new V3(0, 3.2, 4.2) : new V3(0, 2.6, 3.6)), f]; }
   const portrait = W / H < 0.9;
-  if (mode === 'bath') { const k = GROOM.kind === 'bain' && BATH.phase !== 'brush' && BATH.phase !== 'done' ? 1 : 0.72, f = new V3(D.pos.x * 0.95, (portrait ? 0.62 : 0.72) * (k < 1 ? 0.75 : 1), SPOT.z + (D.pos.z - SPOT.z) * 0.5); return [f.clone().add((portrait ? new V3(0, 1.0, 3.7) : new V3(0.2, 0.85, 3.2)).multiplyScalar(k)), f]; }
+  if (mode === 'bath') { const sz = rig ? Math.min(1.45, Math.max(0.95, 0.55 + rig.root.scale.x * 0.75)) : 1;   // un grand chien : la caméra recule et vise plus haut
+    // brosse : la visée un peu à droite du chien, pour que sa tête ne passe plus sous les boutons
+    const near = !(GROOM.kind === 'bain' && BATH.phase !== 'brush' && BATH.phase !== 'done'), k = (near ? 0.92 : 1) * sz;
+    const f = new V3(D.pos.x * 0.95 + (near && portrait ? 0.18 * sz : 0), (portrait ? 0.62 : 0.72) * (near ? 0.8 : 1) * sz, SPOT.z + (D.pos.z - SPOT.z) * 0.85);
+    return [f.clone().add((portrait ? new V3(0, 1.0, 3.7) : new V3(0.2, 0.85, 3.2)).multiplyScalar(k)), f]; }
   if (mode === 'cuddle') return portrait ? [new V3(0, 1.6, 5.2), new V3(0, 0.7, 1.6)] : [new V3(0.2, 1.55, 4.7), new V3(0, 0.8, 1.6)];
   if (mode === 'decor') return portrait ? [new V3(0, 15.5, 9.5), new V3(0, 0, -0.2)] : [new V3(0, 10.5, 7.8), new V3(0, 0, -0.4)];
   if (mode === 'train') return portrait ? [new V3(0, 2.3, 6.6), new V3(0, -0.05, 1.6)] : [new V3(0.25, 2.2, 5.8), new V3(0, 0.0, 1.6)];
@@ -4912,8 +4916,8 @@ HOSE.gun = grp(HOSE.g); HOSE.gun.scale.setScalar(0.75);
   mesh(gun, new THREE.BoxGeometry(0.07, 0.2, 0.08), 0xe8566b, {p:[0, -0.11, -0.03], r:[-0.35, 0, 0], ow:0.08});                // poignée
   mesh(gun, new THREE.BoxGeometry(0.025, 0.08, 0.04), 0x3b2a1e, {p:[0, -0.07, 0.05], r:[0.3, 0, 0], outline:false});           // gâchette
   HOSE.trig = gun.children[gun.children.length - 1]; }
-HOSE.jetMat = new THREE.MeshBasicMaterial({color:0x5ab8f0, transparent:true, opacity:0.85, depthWrite:false});
-HOSE.coreMat = new THREE.MeshBasicMaterial({color:0xeaf8ff, transparent:true, opacity:0.9, depthWrite:false});
+HOSE.jetMat = new THREE.MeshBasicMaterial({color:0x5ab8f0, transparent:true, opacity:0.85, depthWrite:false, fog:false});   // l'eau reste bleue le soir
+HOSE.coreMat = new THREE.MeshBasicMaterial({color:0xeaf8ff, transparent:true, opacity:0.9, depthWrite:false, fog:false});
 HOSE.pipeMat = new THREE.MeshToonMaterial({color:0x5fae4e, gradientMap:grad});
 HOSE.g.visible = false;
 function setTube(key, curve, r, mat, seg) {
@@ -4925,8 +4929,10 @@ function stepHose(dt, hit) {
   HOSE.g.visible = show; if (!show) { HOSE.on = 0; return; }
   // le pistolet suit le doigt (un peu en bas à droite) et vise le chien
   const pr = W / H < 0.9, sx = BATH.spraying ? BATH.sx : W * 0.62, sy = BATH.spraying ? BATH.sy : H * 0.62;
-  cast(sx, sy); const ph = hitDog(); if (ph) HOSE.aim.lerp(ph.point, 0.5); else { const t = new V3(); if (ray.ray.intersectPlane(plane, t)) HOSE.aim.lerp(t, 0.35); }
+  // le pistolet reste en bas de l'écran (il suit un peu le doigt de côté) : près du haut de l'écran, il était collé à la caméra et le jet devenait une colonne géante
+  cast(W * 0.6 + (sx - W * 0.5) * 0.35, H * 0.78);
   const gp = ray.ray.origin.clone().addScaledVector(ray.ray.direction, pr ? 2.0 : 2.6);
+  cast(sx, sy); const ph = hitDog(); if (ph) HOSE.aim.lerp(ph.point, 0.5); else { const t = new V3(); if (ray.ray.intersectPlane(plane, t)) HOSE.aim.lerp(t, 0.35); }
   tmpV.set(pr ? 0.14 : 0.2, -0.16, 0).applyQuaternion(camera.quaternion); gp.add(tmpV);
   HOSE.gun.position.lerp(gp, Math.min(1, dt * 18)); HOSE.gun.lookAt(HOSE.aim);
   HOSE.on += ((BATH.spraying ? 1 : 0) - HOSE.on) * Math.min(1, dt * 14);
