@@ -250,6 +250,7 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 .acard.locked svg{filter:grayscale(1) opacity(.5)}
 .acard:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
 .tricks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1}
+.tricks.many{grid-template-columns:repeat(4,1fr);gap:6px}.tricks.many .trick{font-size:12px}
 .trick{background:var(--cream);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:4px 4px 5px;display:flex;flex-direction:column;align-items:center;font:800 14px/1.1 var(--font);color:var(--ink);cursor:pointer}
 .trick svg{width:34px;height:34px}
 .trick .st{font-size:12px;letter-spacing:1px;color:var(--sun);text-shadow:0 0 1px var(--ink),0 0 1px var(--ink)}
@@ -331,6 +332,24 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 .gift.full input{width:120px;font:800 26px/1.2 var(--font);text-align:center;border:3px solid var(--ink);border-radius:12px;padding:6px;background:#fff}
 .lockfull{position:absolute;top:4px;right:4px;background:var(--sun);border:2px solid var(--ink);border-radius:99px;padding:0 6px;font:800 11px/1.5 var(--font);color:var(--ink)}
 .item.full-locked,.acard.full-locked{position:relative;filter:saturate(.55)}
+/* Rang de nourrice et niveau de dressage */
+.gift .stars{font:800 22px/1 var(--font);color:#e0a92a;letter-spacing:2px}
+.gift .rankbar{width:100%;height:12px;border:3px solid var(--ink);border-radius:99px;background:var(--cream);overflow:hidden}
+.gift .rankbar i{display:block;height:100%;background:linear-gradient(90deg,#ffd66b,#ffc94a)}
+.gift .rk{margin:0;font-weight:800;font-size:14px}
+.trankb{display:inline-block;margin-left:8px;background:var(--sun);border:2px solid var(--ink);border-radius:99px;padding:0 8px;font:800 12px/1.6 var(--font);vertical-align:middle}
+/* Concours de dressage */
+.cjudge{display:flex;align-items:center;gap:10px;background:var(--cream);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:6px 10px;margin-bottom:8px}
+.cjudge .face{width:42px;height:42px;flex:none}
+.cjudge .ask{display:flex;align-items:center;gap:6px;font:800 16px/1.1 var(--font)}
+.cjudge .ask svg{width:34px;height:34px}
+.cjudge .pts{margin-left:auto;font:800 14px/1 var(--font);white-space:nowrap}
+.gift .cup{font-size:64px;line-height:1}
+.item small.aura{display:block;font:800 10px/1.1 var(--font);color:#3f8f3a}
+/* Famille : choisir l'ami, puis le chiot qu'on garde */
+.gift .fpick{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.gift .fpick button{display:flex;flex-direction:column;align-items:center;gap:2px;width:96px;background:var(--cream);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:4px;font:800 14px/1.1 var(--font)}
+.gift .fpick img{width:84px;height:84px;object-fit:cover;border-radius:12px}
 #boot{position:fixed;inset:0;z-index:300;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .8s ease;color-scheme:light}
 #boot.out{opacity:0;pointer-events:none}
 #boot .md{font-family:'Luckiest Guy','Baloo 2',system-ui,sans-serif;font-size:clamp(46px,14vw,104px);line-height:.95;text-align:center;letter-spacing:.02em;position:relative}
@@ -648,6 +667,10 @@ const ICON = {
   medaille:'<svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="13" fill="#ffc94a" stroke="#3b2a1e" stroke-width="3"/><path d="M20 14l2.4 5 5.4.7-4 3.7 1 5.3-4.8-2.6-4.8 2.6 1-5.3-4-3.7 5.4-.7z" fill="#fff8ec"/></svg>',
   couronne:'<svg viewBox="0 0 40 40"><path d="M6 30V12l8 8 6-11 6 11 8-8v18z" fill="#ffc94a" stroke="#3b2a1e" stroke-width="3" stroke-linejoin="round"/><circle cx="20" cy="24" r="3" fill="#e8566b"/></svg>',
   aucun:'<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="none" stroke="#3b2a1e" stroke-width="3"/><path d="M11 29l18-18" stroke="#3b2a1e" stroke-width="3"/></svg>',
+  t_tourne:'<svg viewBox="0 0 40 40"><path d="M10 12a12 12 0 1 1-3 12" fill="none" stroke="#3b2a1e" stroke-width="4" stroke-linecap="round"/><path d="M4 9l6 3-1 7" fill="none" stroke="#3b2a1e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="20" r="5" fill="#c98a45" stroke="#3b2a1e" stroke-width="3"/></svg>',
+  t_salue:'<svg viewBox="0 0 40 40"><path d="M5 30l10-6 8 2 12-12" fill="none" stroke="#3b2a1e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="12" cy="29" rx="7" ry="5" fill="#c98a45" stroke="#3b2a1e" stroke-width="3"/><path d="M8 36h26" stroke="#3b2a1e" stroke-width="3" stroke-linecap="round"/></svg>',
+  t_chante:'<svg viewBox="0 0 40 40"><path d="M16 30V9l16-4v19" fill="none" stroke="#3b2a1e" stroke-width="4" stroke-linejoin="round"/><ellipse cx="12" cy="30" rx="5" ry="4" fill="#e8566b" stroke="#3b2a1e" stroke-width="3"/><ellipse cx="28" cy="25" rx="5" ry="4" fill="#e8566b" stroke="#3b2a1e" stroke-width="3"/></svg>',
+  t_danse:'<svg viewBox="0 0 40 40"><path d="M20 4l4.5 9.5 10.5 1.5-7.5 7.3 1.8 10.4L20 27.8l-9.3 4.9 1.8-10.4L5 15l10.5-1.5z" fill="#ffc94a" stroke="#3b2a1e" stroke-width="3" stroke-linejoin="round"/></svg>',
   t_assis:'<svg viewBox="0 0 40 40"><path d="M12 34V22c0-6 4-9 8-9l2-6 5 3-1 4c3 2 4 5 4 9v11z" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.6" stroke-linejoin="round"/><path d="M8 34h26" stroke="#3b2a1e" stroke-width="2.6" stroke-linecap="round"/></svg>',
   t_couche:'<svg viewBox="0 0 40 40"><path d="M4 30c0-5 4-8 10-8h10l3-6 6 2-1 5c3 1 4 4 4 7z" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.6" stroke-linejoin="round"/><path d="M3 31h34" stroke="#3b2a1e" stroke-width="2.6" stroke-linecap="round"/></svg>',
   t_patte:'<svg viewBox="0 0 40 40"><ellipse cx="20" cy="25" rx="8" ry="7" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.6"/><circle cx="10" cy="16" r="3.4" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.4"/><circle cx="16" cy="10" r="3.4" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.4"/><circle cx="24" cy="10" r="3.4" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.4"/><circle cx="30" cy="16" r="3.4" fill="#c98a45" stroke="#3b2a1e" stroke-width="2.4"/></svg>',
@@ -1142,14 +1165,14 @@ const island = new THREE.Mesh(new THREE.CylinderGeometry(7, 6.5, 0.7, 64), [toon
 island.position.y = -0.35; island.receiveShadow = true; scene.add(island);
 const rimM = new THREE.Mesh(new THREE.TorusGeometry(7, 0.06, 6, 90), basic(0x3b2a1e)); rimM.rotation.x = PI / 2; scene.add(rimM);
 // L'ENCLOS : petit au début, on l'agrandit (3 tailles) pour accueillir plus de chiens et plus d'objets
-const ENC = {lv:0, g:null}, ENC_R = [4.7, 5.7, 6.6], ENC_PRICE = [150, 300], ENC_MAX = [6, 9, 13];
+const ENC = {lv:0, g:null}, ENC_R = [4.7, 5.7, 6.6, 7.4, 8.2], ENC_PRICE = [150, 300, 500, 800], ENC_MAX = [6, 9, 13, 17, 21], ENC_TOP = ENC_R.length - 1;
 const encR = () => ENC_R[ENC.lv];
 function buildFence() {
   if (ENC.g) scene.remove(ENC.g); const F = grp(scene), r = encR(), n = Math.round(64 * r / 6.6); ENC.g = F;
   for (let i = 0; i < n; i++) { const a = i / n * PI * 2; if (Math.cos(a) > 0 && Math.abs(Math.sin(a) * r) < 0.78) continue; mesh(F, G('post', () => new THREE.BoxGeometry(0.14, 0.75, 0.08)), 0xfff8ec, {p:[Math.sin(a) * r, 0.37, Math.cos(a) * r], r:[0, a, 0], ow:0.12}); }
   const gap = 0.86 / r; [0.28, 0.56].forEach(y => mesh(F, new THREE.TorusGeometry(r, 0.04, 6, 90, PI * 2 - gap * 2).rotateX(PI / 2), 0xfff8ec, {outline:false, r:[0, -(PI / 2 + gap), 0], p:[0, y, 0]}));
   // au-delà de la clôture : la parcelle à gagner, piquets et petits fanions
-  if (ENC.lv < 2) { const r2 = ENC_R[ENC.lv + 1]; for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + 0.1; if (Math.cos(a) > 0.85) continue; const p = grp(F, [Math.sin(a) * r2, 0, Math.cos(a) * r2], [0, a, 0]);
+  if (ENC.lv < ENC_TOP) { const r2 = ENC_R[ENC.lv + 1]; for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + 0.1; if (Math.cos(a) > 0.85) continue; const p = grp(F, [Math.sin(a) * r2, 0, Math.cos(a) * r2], [0, a, 0]);
     mesh(p, G('stake', () => new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6)), 0xc98a5a, {p:[0, 0.25, 0], outline:false}); mesh(p, G('flag', () => new THREE.ConeGeometry(0.08, 0.16, 3).rotateZ(-PI / 2)), i % 2 ? 0xffc94a : 0xe8566b, {p:[0.07, 0.45, 0], outline:false}); } }
   if (ENC.gate) ENC.gate.position.z = r - 0.02;
 }
@@ -1259,6 +1282,19 @@ const ITEMS = {
     const h = grp(g, [0, 0.38, 0]); ell(h, 0.1, 0.07, 0.1, 0xe8566b, [0, 0, 0]);
     [-1, 1].forEach(s => mesh(h, new THREE.CylinderGeometry(0.025, 0.025, 0.22, 8), 0xe8566b, {r:[0, 0, PI / 2 - s * 0.4], p:[s * 0.12, 0.04, 0]})); g.userData.head = h; }},
   arche:{name:'Arche', price:50, r:1.2, push:0, use:'arch', build(g) { mesh(g, new THREE.TorusGeometry(1.0, 0.18, 10, 28, PI), 0x5aa9e6, {ow:0.05}); }},   // passage de 82 cm : le chien passe dessous
+  repas:{name:'Coin repas', price:150, r:0.85, push:0.6, hard:0.5, aura:'faim', build(g) {   // les chiens mangent mieux ensemble
+    mesh(g, new THREE.CylinderGeometry(0.85, 0.85, 0.03, 28), 0xffd66b, {outline:false, p:[0, 0.015, 0], receive:true});
+    [[0, 0.35], [-0.38, -0.2], [0.38, -0.2]].forEach(([x, z], i) => { mesh(g, new THREE.CylinderGeometry(0.2, 0.16, 0.1, 18), [0xff8fb1, 0x5aa9e6, 0x5fae4e][i], {p:[x, 0.08, z]}); mesh(g, new THREE.CylinderGeometry(0.16, 0.16, 0.02, 18), 0xc07a3c, {outline:false, p:[x, 0.13, z]}); }); }},
+  dortoir:{name:'Dortoir', price:180, r:0.95, push:0.7, hard:0.6, aura:'calins', use:'bed', build(g) {   // un grand coussin pour la sieste de la meute
+    ell(g, 0.92, 0.12, 0.66, 0xb59cff, [0, 0.1, 0]); mesh(g, new THREE.TorusGeometry(0.8, 0.13, 10, 28), 0x9b7be0, {r:[PI / 2, 0, 0], s:[1, 0.75, 1], p:[0, 0.16, 0]});
+    ell(g, 0.3, 0.1, 0.18, 0xfff1d6, [0.35, 0.24, -0.28], {r:[0, 0.4, 0]}); ell(g, 0.3, 0.1, 0.18, 0xfff1d6, [-0.35, 0.24, -0.28], {r:[0, -0.4, 0]}); }},
+  jeux:{name:'Coin jeux', price:160, r:0.7, push:0.5, hard:0.4, aura:'jeu', use:'squeak', build(g) {   // le coffre à jouets
+    mesh(g, new THREE.BoxGeometry(0.7, 0.4, 0.45), 0xe8566b, {p:[0, 0.2, 0]}); mesh(g, new THREE.BoxGeometry(0.74, 0.06, 0.49), 0xffc94a, {p:[0, 0.42, 0]});
+    [[0.18, 0.55, 0, 0x5aa9e6], [-0.15, 0.53, 0.08, 0x5fae4e], [0, 0.56, -0.12, 0xffc94a]].forEach(([x, y, z, c]) => ell(g, 0.11, 0.11, 0.11, c, [x, y, z]));
+    mesh(g, new THREE.CylinderGeometry(0.03, 0.03, 0.34, 8).rotateZ(PI / 2), 0xfff8ec, {p:[0.05, 0.5, 0.2], r:[0, 0.5, 0]}); }},
+  toilettage:{name:'Coin toilettage', price:200, r:0.75, push:0.55, hard:0.45, aura:'proprete', build(g) {   // la table de toilettage
+    mesh(g, new THREE.BoxGeometry(1.0, 0.07, 0.55), 0x5aa9e6, {p:[0, 0.5, 0]}); [-1, 1].forEach(sx => [-1, 1].forEach(sz => mesh(g, new THREE.CylinderGeometry(0.035, 0.035, 0.5, 8), 0xfff8ec, {p:[sx * 0.42, 0.25, sz * 0.22]})));
+    mesh(g, new THREE.CylinderGeometry(0.06, 0.07, 0.2, 12), 0xff8fb1, {p:[0.3, 0.64, 0.1]}); mesh(g, new THREE.BoxGeometry(0.2, 0.05, 0.1), 0xffc94a, {p:[-0.25, 0.56, 0]}); }},
   fleurs:{name:'Fleurs', price:20, r:0.5, push:0, use:null, build(g) {
     for (let i = 0; i < 8; i++) { const a = i * 2.4, r = i ? 0.12 + (i % 3) * 0.1 : 0, x = Math.cos(a) * r, z = Math.sin(a) * r, h = 0.22 + (i % 3) * 0.08;
       mesh(g, G('stem2', () => new THREE.CylinderGeometry(0.018, 0.018, 1, 5)), 0x3d8a35, {outline:false, p:[x, h / 2, z], s:[1, h, 1]});
@@ -1268,7 +1304,7 @@ const ITEMS = {
     [[0, 0.38, 0, 0.42], [-0.25, 0.28, 0.12, 0.3], [0.26, 0.3, -0.05, 0.32]].forEach(([x, y, z, r]) => ell(g, r, r, r, 0x4fa046, [x, y, z], {ow:0.05}));
     [[0.2, 0.55, 0.25], [-0.15, 0.62, 0.2], [0.05, 0.4, 0.4], [-0.35, 0.36, 0.3]].forEach(p => ell(g, 0.05, 0.05, 0.05, 0xe8566b, p, {outline:false})); }}
 };
-const KINDS = ['gamelle', 'panier', 'piscine', 'sable', 'haie', 'couine', 'arroseur', 'arche', 'fleurs'];
+const KINDS = ['gamelle', 'panier', 'piscine', 'sable', 'haie', 'couine', 'arroseur', 'arche', 'repas', 'dortoir', 'jeux', 'toilettage', 'fleurs'];
 let uid = 0;
 function placeItem(kind, x, z, rot = 0) {
   const d = ITEMS[kind], g = grp(scene, [x, 0, z], [0, rot, 0]); d.build(g);
@@ -1413,7 +1449,8 @@ let W = 1, H = 1;
 // ---------- âge réel : les chiens arrivent bébés et grandissent chaque jour ----------
 const DAY = 86400000, ADULT_DAY = 10;
 let born = {}, seen = {}, devDays = 0, AGE_G = 1, growB = {}, growCap = {}, custom = {};
-const FIRST = {key:null}, FULL = {on:false, why:null};   // FULL : version complète achetée
+const FIRST = {key:null}, FULL = {on:false, why:null};
+let nourStars = 0, cups = {or:0, argent:0, bronze:0};   // étoiles de nourrice : une par chien rendu content à son maître   // FULL : version complète achetée
 let xp = 0, level = 1, introDone = false, tutStep = -1, tricks = {}, accessory = null, accOwned = [], best = {};
 let pack = [], dogs = {}, puppies = {}, lastLitter = 0, offerT = 0;
 let OFFLINE_POOPS = 0, hintsDone = {}, names = {}, collarCol = {}, kennelCol = null, prefs = {}, daily = {}, finds = {}, rareSeen = {}, seasonForce = null, awayS = 0;
@@ -1456,7 +1493,7 @@ try {
     hintsDone = s.hints || {}; pack = (s.pack || []).filter(k => BREEDS[k]); dogs = s.dogs || {}; lastLitter = s.litter || 0; offerT = s.offer || 0;
     Object.keys(dogs).forEach(k => { if (k === s.breed || !BREEDS[k] || !dogs[k].g) return; Object.keys(dogs[k].g).forEach(x => dogs[k].g[x] = Math.max(0.05, dogs[k].g[x] - away * rate(x, k) * 0.35)); });
     names = s.names || {}; collarCol = s.collarCol || {}; kennelCol = s.kennelCol ?? null; prefs = s.prefs || {}; daily = s.daily || {}; finds = s.finds || {}; rareSeen = s.rares || {}; seasonForce = s.season ?? null; awayS = Math.max(0, (Date.now() - s.t) / 1000);
-    FULL.on = !!s.full || (s.pack || []).length > 1;   // ceux qui gardent déjà d'autres chiens gardent tout
+    FULL.on = !!s.full || (s.pack || []).length > 1; nourStars = s.stars || 0; cups = Object.assign({or:0, argent:0, bronze:0}, s.cups || {});   // ceux qui gardent déjà d'autres chiens gardent tout
     custom = s.custom || {}; FIRST.key = s.first || null; Object.keys(custom).forEach(k => BREEDS[k] && applyCustom(k));
     Object.keys(names).forEach(k => BREEDS[k] && (BREEDS[k].dog = names[k])); Object.keys(collarCol).forEach(k => BREEDS[k] && (BREEDS[k].collar = collarCol[k]));
     if (Array.isArray(s.items)) s.items.forEach(([k, x, z, r]) => ITEMS[k] && placeItem(k, x, z, r));
@@ -1465,9 +1502,11 @@ try {
     for (let i = 0; i < OFFLINE_POOPS; i++) { const p = randFree(); addPoop(p.x, p.z); }
   } else { placeItem('arche', 1.0, -3.2, 0.4); }
 } catch (e) { if (!placed.length) placeItem('arche', 1.0, -3.2, 0.4); }
-function rate(k, br = breed) { const base = {faim:1 / 1500, proprete:1 / 2400, jeu:1 / 1200, calins:1 / 1500}[k]; return base * ((BREEDS[br].rates || {})[k] || 1) * (br === breed && (k === 'faim' || k === 'calins') ? 1 + 0.4 * (1 - AGE_G) : 1); }
+// un coin posé dans le jardin ralentit de 20 % l'usure de sa jauge, pour toute la meute
+function cornerK(k) { return placed.some(p => ITEMS[p.kind].aura === k) ? 0.8 : 1; }   // déclarée en fonction : rate() sert dès la lecture de la sauvegarde
+function rate(k, br = breed) { const base = {faim:1 / 1500, proprete:1 / 2400, jeu:1 / 1200, calins:1 / 1500}[k]; return base * cornerK(k) * ((BREEDS[br].rates || {})[k] || 1) * (br === breed && (k === 'faim' || k === 'calins') ? 1 + 0.4 * (1 - AGE_G) : 1); }
 let RESETTING = false;
-function save() { if (RESETTING) return; try { localStorage.setItem(SAVE, JSON.stringify({full:FULL.on, breed, g:gauges, t:Date.now(), poops:poops.map(p => [p.position.x, p.position.z]), coins, enc:ENC.lv, born, seen, devDays, growB, growCap, gp:GROWP, custom, first:FIRST.key, xp, level, intro:introDone, tut:tutStep, tricks, acc:accessory, accs:accOwned, best, hints:hintsDone, pack, dogs:(storeCur(), dogs), puppies, litter:lastLitter, offer:offerT, bl:+(D.bladder || 0).toFixed(3), en:+(D.energy ?? 1).toFixed(3), names, collarCol, kennelCol, prefs, daily, finds, rares:rareSeen, season:seasonForce, items:placed.filter(p => !sel || p !== sel.it || !sel.isNew).map(p => [p.kind, +p.x.toFixed(2), +p.z.toFixed(2), +p.rot.toFixed(2)])})); } catch (e) {} }
+function save() { if (RESETTING) return; try { localStorage.setItem(SAVE, JSON.stringify({full:FULL.on, stars:nourStars, cups, breed, g:gauges, t:Date.now(), poops:poops.map(p => [p.position.x, p.position.z]), coins, enc:ENC.lv, born, seen, devDays, growB, growCap, gp:GROWP, custom, first:FIRST.key, xp, level, intro:introDone, tut:tutStep, tricks, acc:accessory, accs:accOwned, best, hints:hintsDone, pack, dogs:(storeCur(), dogs), puppies, litter:lastLitter, offer:offerT, bl:+(D.bladder || 0).toFixed(3), en:+(D.energy ?? 1).toFixed(3), names, collarCol, kennelCol, prefs, daily, finds, rares:rareSeen, season:seasonForce, items:placed.filter(p => !sel || p !== sel.it || !sel.isNew).map(p => [p.kind, +p.x.toFixed(2), +p.z.toFixed(2), +p.rot.toFixed(2)])})); } catch (e) {} }
 function randFree() { for (let i = 0; i < 30; i++) { const a = Math.random() * PI * 2, r = 1.2 + Math.random() * (encR() - 2.2), p = new V3(Math.sin(a) * r, 0, Math.cos(a) * r); if (free(p.x, p.z, 0.3)) return p; } return new V3(2, 0, -1); }
 
 
@@ -2049,7 +2088,7 @@ const decorTitle = document.getElementById('decorTitle'), shelf = document.getEl
 const thumbs = {};
 function renderShelf() {
   shelf.innerHTML = '';
-  if (ENC.lv < 2) { const pr = ENC_PRICE[ENC.lv], b = document.createElement('button'); b.className = 'item enc'; if (coins < pr) b.disabled = true;
+  if (ENC.lv < ENC_TOP) { const pr = ENC_PRICE[ENC.lv], b = document.createElement('button'); b.className = 'item enc'; if (coins < pr) b.disabled = true;
     b.innerHTML = `<span class="encico">${ICON.decor}</span><b>Agrandir l'enclos</b><span class="price">${ICON.coin}${pr}</span>`; b.setAttribute('aria-label', `Agrandir l'enclos, ${pr} pièces`);
     if (level >= 3 && pack.length < 4 && prepNeeds().enc) { b.classList.add('need'); b.dataset.need = 'Il le faut !'; }
     if (fullLocked('enclos')) { b.classList.add('full-locked'); b.disabled = false; b.insertAdjacentHTML('beforeend', '<i class="lockfull">Complète</i>'); b.onclick = () => askFull('enclos'); }
@@ -2058,7 +2097,7 @@ function renderShelf() {
     const d = ITEMS[k], b = document.createElement('button'); b.className = 'item';
     if (level >= 3 && pack.length < 4) { const nd = prepNeeds(); if ((k === 'gamelle' && nd.gamelle) || (k === 'panier' && nd.panier)) { b.classList.add('need'); b.dataset.need = 'Il en faut !'; } }
     if (coins < d.price) b.disabled = true;
-    b.innerHTML = `<img src="${thumbs[k] || ''}" alt=""><b>${d.name}</b><span class="price">${ICON.coin}${d.price}</span>`;
+    b.innerHTML = `<img src="${thumbs[k] || ''}" alt=""><b>${d.name}</b>${d.aura ? `<small class="aura">${{faim:'Moins faim', calins:'Plus câlin', jeu:'Moins d\u2019ennui', proprete:'Reste propre'}[d.aura]}</small>` : ''}<span class="price">${ICON.coin}${d.price}</span>`;
     b.setAttribute('aria-label', `${d.name}, ${d.price} pièces`);
     if (fullLocked(k)) { b.classList.add('full-locked'); b.disabled = false; b.insertAdjacentHTML('beforeend', '<i class="lockfull">Complète</i>'); b.onclick = () => askFull(k); }
     else b.onclick = () => { S.pop(); buy(k); }; shelf.appendChild(b);
@@ -2087,7 +2126,7 @@ function commit(force) {
   sel = null; ring.visible = false; showTools(false); renderShelf(); save(); return true;
 }
 function growEnclosure() {
-  if (ENC.lv >= 2) return; const pr = ENC_PRICE[ENC.lv]; if (coins < pr) { S.deny(); return; }
+  if (ENC.lv >= ENC_TOP) return; const pr = ENC_PRICE[ENC.lv]; if (coins < pr) { S.deny(); return; }
   coins -= pr; showCoins(); ENC.lv++; buildFence(); S.fanfare(); S.sparkle(8); buzz([20, 40, 20]); say('Youpi !', 'big'); jump(6);
   for (let i = 0; i < 40; i++) { const a = i / 40 * PI * 2, r = encR(); spawn(new V3(Math.sin(a) * r, 0.6, Math.cos(a) * r), new V3(0, 2 + Math.random() * 2, 0), i % 2 ? 0xffc94a : 0x5fae4e, 0.05, 1, 6, true); }
   npcs.forEach(n => npcBark(n, 'Wouf !')); renderShelf(); save();
@@ -2096,7 +2135,7 @@ function growEnclosure() {
 function buy(kind) {
   if (sel && !commit(false)) return;
   const d = ITEMS[kind]; if (coins < d.price) return;
-  if (placed.filter(p => !['fleurs'].includes(p.kind)).length >= ENC_MAX[ENC.lv] && kind !== 'fleurs') { S.deny(); decorTitle.textContent = ENC.lv < 2 ? "L'enclos est plein : agrandis-le !" : "L'enclos est plein !"; decorTitle.classList.add('no'); setTimeout(() => showTools(false), 1600); return; }
+  if (placed.filter(p => !['fleurs'].includes(p.kind)).length >= ENC_MAX[ENC.lv] && kind !== 'fleurs') { S.deny(); decorTitle.textContent = ENC.lv < ENC_TOP ? "L'enclos est plein : agrandis-le !" : "L'enclos est plein !"; decorTitle.classList.add('no'); setTimeout(() => showTools(false), 1600); return; }
   let spot = null;
   for (let i = 0; i < 80 && !spot; i++) { const a = i * 2.39996, r = 0.6 + i * 0.07, x = Math.sin(a) * r, z = -0.6 + Math.cos(a) * r; if (Math.hypot(x, z) + d.r < encR() - 0.5 && free(x, z, 0.1)) spot = [x, z]; }
   if (!spot) { decorTitle.textContent = 'Plus de place !'; decorTitle.classList.add('no'); setTimeout(() => showTools(false), 1200); return; }
@@ -2989,9 +3028,9 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!sheet.h
    PROGRESSION : niveaux, déblocages, cadeaux, accessoires
    ========================================================= */
 const LV = [0, 0, 40, 220, 480, 800, 1200, 1700, 2300, 3000, 3800];   // LV[n] = XP pour atteindre le niveau n
-const UNLOCK = {laver:2, eduquer:3, decorer:3, balade:4, circuit:6};
-const ACT_NAME = {laver:'Laver', eduquer:'Éduquer', balade:'Balade', decorer:'Décorer', circuit:'Circuit'};
-const ACT_ICO = {laver:'proprete', eduquer:'train', balade:'walk', decorer:'decor', circuit:'agility'};
+const UNLOCK = {laver:2, eduquer:3, decorer:3, balade:4, concours:5, circuit:6, famille:7};
+const ACT_NAME = {laver:'Laver', eduquer:'Éduquer', balade:'Balade', decorer:'Décorer', circuit:'Circuit', concours:'Concours', famille:'Famille'};
+const ACT_ICO = {laver:'proprete', eduquer:'train', balade:'walk', decorer:'decor', circuit:'agility', concours:'star', famille:'calins'};
 const LV_REWARD = {2:{coins:50, acc:'bandana'}, 3:{coins:80, acc:'noeud'}, 4:{coins:100, acc:'casquette'}, 5:{coins:120, acc:'medaille'}, 6:{coins:150, acc:'couronne'}, 7:{coins:200}, 8:{coins:250}, 9:{coins:300}, 10:{coins:400}};
 const ACC_NAME = {bandana:'Bandana', noeud:'Petit nœud', casquette:'Casquette', medaille:'Médaille', couronne:'Couronne'};
 const il = () => BREEDS[breed].fem ? 'elle' : 'il', Il = () => BREEDS[breed].fem ? 'Elle' : 'Il', le = () => BREEDS[breed].fem ? 'la' : 'le';
@@ -3086,7 +3125,7 @@ function speak(text) {
    ========================================================= */
 const panel = document.getElementById('panel');
 function openActivities() {
-  const list = [['eduquer', 'Éduquer', 'Apprendre des tours'], ['balade', 'Balade', 'En laisse au parc'], ['circuit', 'Circuit', "Parcours d'agilité"], ['decorer', 'Décorer', 'Le jardin']];
+  const list = [['eduquer', 'Éduquer', 'Apprendre des tours'], ['concours', 'Concours', 'Une coupe par jour'], ['famille', 'Famille', 'Des bébés chiots'], ['balade', 'Balade', 'En laisse au parc'], ['circuit', 'Circuit', "Parcours d'agilité"], ['decorer', 'Décorer', 'Le jardin']];
   panel.innerHTML = `<div class="prow"><span class="ptitle">Activités</span><button class="cta small" id="pClose">Fermer</button></div>
     <div class="acts">${list.map(([a, n, d]) => `<button class="acard ${unlockedAt(a) ? '' : 'locked'} ${fullLocked(a) ? 'full-locked' : ''}" data-a="${a}">${ICON[ACT_ICO[a]]}<span>${n}</span><small>${unlockedAt(a) ? d : 'Niveau ' + UNLOCK[a]}</small>${fullLocked(a) ? '<i class="lockfull">Complète</i>' : ''}</button>`).join('')}</div>`;
   panel.hidden = false; document.getElementById('actions').hidden = true;
@@ -3095,7 +3134,8 @@ function openActivities() {
     const a = b.dataset.a; if (!unlockedAt(a)) { S.deny(); tip(b, `Niveau ${UNLOCK[a]}`); return; }
     if (fullLocked(a)) { closePanel(); askFull(a); return; }
     S.toc(2); closePanel();
-    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'balade') startWalk(); else if (a === 'circuit') startAgility();
+    if (a === 'concours' && !contestReady()) { S.deny(); tip(b, 'Apprends 3 tours'); return; }
+    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'concours') startContest(); else if (a === 'famille') startFamily(); else if (a === 'balade') startWalk(); else if (a === 'circuit') startAgility();
   });
 }
 function closePanel() { panel.hidden = true; panel.innerHTML = ''; if (!['train', 'walk', 'agility', 'intro', 'decor'].includes(mode)) document.getElementById('actions').hidden = false; }
@@ -3104,9 +3144,59 @@ function closePanel() { panel.hidden = true; panel.innerHTML = ''; if (!['train'
    ÉDUQUER : renforcement positif (la friandise au bon moment)
    ========================================================= */
 const TRICKS = [{id:'assis', name:'Assis', need:0}, {id:'couche', name:'Couché', need:0}, {id:'patte', name:'La patte', need:0},
-  {id:'roule', name:'Roule', need:2}, {id:'saute', name:'Saute', need:3}, {id:'beau', name:'Fais le beau', need:4}];
+  {id:'roule', name:'Roule', need:2}, {id:'saute', name:'Saute', need:3}, {id:'beau', name:'Fais le beau', need:4},
+  {id:'tourne', name:'Tourne', need:5}, {id:'salue', name:'Salue', need:6}, {id:'chante', name:'Chante', need:7}, {id:'danse', name:'Danse', need:8}];
 const learnedN = () => TRICKS.filter(tk => (tricks[tk.id] || 0) >= 5).length;
+// les tours appris ou débloqués, et seulement le prochain à débloquer
+const visTricks = () => { const n = learnedN(); let next = false; return TRICKS.filter(tk => { if (n >= tk.need) return true; if (next) return false; next = true; return true; }); };
 let TR = null;
+/* =========================================================
+   CONCOURS DE DRESSAGE (version complète, une fois par jour) : le juge demande 3 tours parmi ceux appris ;
+   le bon tour réussi = 3 points, le bon tour raté = 1. 9 = coupe d'or, 6 = argent, 3 = bronze.
+   ========================================================= */
+const CONTEST = {on:false};
+const contestReady = () => learnedN() >= 3;
+function startContest() {
+  const today = new Date().toDateString();
+  if (hintsDone.contestDay === today) { S.deny(); coach(`Le prochain concours, c'est demain !`, 4); return; }
+  const pool = TRICKS.filter(tk => (tricks[tk.id] || 0) >= 1 && learnedN() >= tk.need).map(tk => tk.id);
+  const seq = Array.from({length:3}, () => pool[Math.floor(Math.random() * pool.length)]);
+  hintsDone.contestDay = today; save();
+  Object.assign(CONTEST, {on:true, seq, round:0, score:0, busy:false});
+  startTrain(); S.fanfare(); coach(`Concours ! Fais faire au chien le tour que le juge demande.`, 5);
+}
+function judgeHTML() {
+  if (!CONTEST.on) return '';
+  const id = CONTEST.seq[CONTEST.round], tk = TRICKS.find(x => x.id === id);
+  return `<div class="cjudge"><span class="face">${ownerFace(breed)}</span><span class="ask">${tk ? ICON['t_' + id] : ''}${tk ? tk.name + ' !' : ''}</span><span class="pts">${CONTEST.round + 1} / 3 · ${CONTEST.score} pts</span></div>`;
+}
+function contestCommand(id) {
+  if (CONTEST.busy || D.target) return; CONTEST.busy = true;
+  const asked = CONTEST.seq[CONTEST.round], st = tricks[id] || 0; S.toc(1); kidSays(TRICKS.find(x => x.id === id).name + ' !');
+  D.posture = 'stand'; D.anim = null;
+  setTimeout(() => {
+    const ok = id === asked && Math.random() < (st >= 5 ? 0.95 : 0.3 + st * 0.13);
+    doTrick(ok ? id : (Math.random() < 0.5 ? 'confus' : 'gratte'));
+    const pts = id !== asked ? 0 : ok ? 3 : 1; CONTEST.score += pts;
+    setTimeout(() => {
+      say(pts === 3 ? 'Bravo !' : pts === 1 ? 'Presque !' : 'Oups !', pts === 3 ? 'big' : undefined); if (pts === 3) { S.heart(); S.sparkle(4); } else S.deny();
+      CONTEST.round++; CONTEST.busy = false; D.posture = 'stand';
+      if (CONTEST.round >= 3) setTimeout(endContest, 900); else renderTrain();
+    }, 1700);
+  }, 650);
+}
+function endContest() {
+  const sc = CONTEST.score, cup = sc >= 9 ? 'or' : sc >= 6 ? 'argent' : sc >= 3 ? 'bronze' : null, coinsW = {or:60, argent:40, bronze:25}[cup] || 10;
+  CONTEST.on = false; if (cup) cups[cup]++; save();
+  const name = {or:'Coupe d\u2019or', argent:'Médaille d\u2019argent', bronze:'Ruban de bronze'}[cup] || 'Merci d\u2019avoir participé !', ico = {or:'🏆', argent:'🥈', bronze:'🎀'}[cup] || '🐾';
+  panel.hidden = true; panel.innerHTML = '';
+  modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Résultat du concours"><h2>Concours</h2><div class="cup">${ico}</div>
+    <p style="margin:0;font-weight:800;font-size:20px">${name}</p><p class="rk" style="margin:0">${sc} points sur 9</p>
+    <div class="rew"><div>${ICON.coin}<span>+${coinsW} pièces</span></div><div>${ICON.star}<span>Coupes : ${cups.or} or · ${cups.argent} argent · ${cups.bronze} bronze</span></div></div>
+    <button class="cta">${cup ? 'Trop bien !' : 'On s\u2019entraîne !'}</button></div>`;
+  modalEl.hidden = false; if (cup) { S.fanfare(); S.sparkle(10); buzz([30, 50, 30]); } speak(name);
+  modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); earn(coinsW); endTrain(); };
+}
 function startTrain() {
   setMode('train', true); stopUsing(); D.carrying && dropBall();
   goTo(SPOT, D.pos.distanceTo(SPOT) > 2, 0.12, () => { D.faceYaw = 0; D.posture = 'stand'; });
@@ -3115,13 +3205,14 @@ function startTrain() {
 }
 function renderTrain() {
   panel.hidden = false;
-  panel.innerHTML = `<div class="prow"><span class="ptitle">Éduquer ${BREEDS[breed].dog}</span><button class="cta small" id="pClose">Fini !</button></div>
-    <div class="trainrow"><div class="tricks">${TRICKS.map(tk => { const st = tricks[tk.id] || 0, lock = learnedN() < tk.need;
+  panel.innerHTML = `${judgeHTML()}<div class="prow"><span class="ptitle">${CONTEST.on ? 'Concours' : 'Éduquer'} ${BREEDS[breed].dog}<span class="trankb">${trainName(trainRank(), BREEDS[breed].fem)}</span></span><button class="cta small" id="pClose">Fini !</button></div>
+    <div class="trainrow"><div class="tricks ${visTricks().length > 6 ? 'many' : ''}">${visTricks().map(tk => { const st = tricks[tk.id] || 0, lock = learnedN() < tk.need;
       return `<button class="trick ${lock ? 'lock' : ''} ${st >= 5 ? 'learned' : ''}" data-t="${tk.id}">${ICON['t_' + tk.id]}<span>${tk.name}</span><span class="st">${lock ? 'à débloquer' : '★'.repeat(st) + '☆'.repeat(5 - st)}</span></button>`; }).join('')}</div>
     <button class="treat" id="treatBtn">${ICON.bone}<span>Friandise</span></button></div>`;
   panel.querySelector('#pClose').onclick = endTrain;
   panel.querySelector('#treatBtn').onclick = giveTreat;
-  panel.querySelectorAll('.trick').forEach(b => b.onclick = () => { if (b.classList.contains('lock')) { S.deny(); tip(b, `Apprends ${TRICKS.find(x => x.id === b.dataset.t).need} tours`); return; } command(b.dataset.t); });
+  panel.querySelectorAll('.trick').forEach(b => b.onclick = () => { if (b.classList.contains('lock')) { S.deny(); tip(b, `Apprends ${TRICKS.find(x => x.id === b.dataset.t).need} tours`); return; } if (CONTEST.on) contestCommand(b.dataset.t); else command(b.dataset.t); });
+  if (CONTEST.on) { const tb = panel.querySelector('#treatBtn'); if (tb) tb.hidden = true; }
 }
 function kidSays(text) { const d = document.createElement('div'); d.className = 'kid'; d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 1200); }
 function command(id) {
@@ -3142,6 +3233,8 @@ function doTrick(id) {
   if (id === 'assis') { D.posture = 'sit'; } else if (id === 'couche') { D.posture = 'lie'; }
   else if (id === 'patte') { D.posture = 'sit'; play('paw', 2.0); } else if (id === 'roule') { play('rollover', 1.3); }
   else if (id === 'saute') { jump(7.6); D.spin = PI * 2; } else if (id === 'beau') { play('beg', 2.0); }
+  else if (id === 'tourne') { play('tailchase', 1.8); } else if (id === 'salue') { play('bow', 1.8); }
+  else if (id === 'chante') { play('howl', 2.0); say('Aouuuh !'); } else if (id === 'danse') { jump(4.2); D.spin = PI; setTimeout(() => { if (mode === 'train' || mode === 'contest') { jump(4.2); D.spin = -PI; } }, 520); }
   else if (id === 'confus') { play('tilt', 1.4, null, {side:Math.random() < 0.5 ? -1 : 1}); say('?'); }
   else if (id === 'gratte') { play('scratch', 1.8); }
 }
@@ -3159,7 +3252,10 @@ function giveTreat() {
   if (w.ok) {
     mission('trick'); const before = tricks[w.asked] || 0; tricks[w.asked] = Math.min(5, before + 1); D.happy = Math.min(1, D.happy + 0.3);
     setTimeout(() => { rig.head.localToWorld(headTop.set(0, 0.2, 0)); for (let i = 0; i < 4; i++) setTimeout(() => floatIcon(headTop, 'calins'), i * 90); S.heart(); }, 500);
-    if (tricks[w.asked] >= 5 && before < 5) setTimeout(() => { const tk = TRICKS.find(x => x.id === w.asked); say('Youpi !', 'big'); S.fanfare(); coach(`Bravo ! ${BREEDS[breed].dog} sait faire « ${tk.name} » !`, 4); earn(15); }, 700);
+    if (tricks[w.asked] >= 5 && before < 5) { const r0 = trainRank(learnedN() - 1), r1 = trainRank();
+      setTimeout(() => { const tk = TRICKS.find(x => x.id === w.asked); say('Youpi !', 'big'); S.fanfare(); earn(15);
+        if (r1 > r0) { coach(`${BREEDS[breed].dog} devient ${trainName(r1, BREEDS[breed].fem)} au dressage !`, 5); S.sparkle(10); setTimeout(() => miniToast(ICON.star, trainName(r1, BREEDS[breed].fem) + ' !', `Nouveau niveau de dressage`, 3500), 1200); }
+        else coach(`Bravo ! ${BREEDS[breed].dog} sait faire « ${tk.name} » !`, 4); }, 700); }
     else setTimeout(() => earn(2), 600);
   } else { setTimeout(() => { say('Hm ?'); coach(`La friandise, c'est quand il réussit !`, 4); }, 500); }
   setTimeout(() => { D.posture = 'stand'; TR.busy = false; renderTrain(); }, 1300);
@@ -3168,7 +3264,7 @@ function stepTrain(dt) {
   if (mode !== 'train' || !TR) return;
   if (TR.win && clock > TR.win.until) { TR.win = null; document.getElementById('treatBtn')?.classList.remove('hot'); say('Hm ?'); setTimeout(() => { D.posture = 'stand'; if (TR) TR.busy = false; }, 500); }
 }
-function endTrain() { S.toc(3); TR = null; panel.hidden = true; panel.innerHTML = ''; setMode('cuddle'); D.posture = 'sit'; save(); }
+function endTrain() { S.toc(3); TR = null; CONTEST.on = false; panel.hidden = true; panel.innerHTML = ''; setMode('cuddle'); D.posture = 'sit'; save(); }
 
 /* =========================================================
    PERSONNAGES HUMAINS (propriétaires)
@@ -4352,7 +4448,7 @@ function runDaily(delay = 0) { setTimeout(() => whenFree(() => seasonGift(() => 
 function afterStart() {
   if (!introDone || tutStep !== -2) return;
   ensureDaily(); misBadge(); applyAbsence(awayS);
-  const t = welcomeBack(awayS); awayS = 0; runDaily(t + 500); setTimeout(() => whenFree(() => tryLitter()), t + 9000);
+  const t = welcomeBack(awayS); awayS = 0; runDaily(t + 500);
 }
 
 /* ---------- appareil photo ---------- */
@@ -5577,6 +5673,50 @@ function registerPuppies(map) {
   Object.keys(map || {}).forEach(k => { const p = map[k], par = BREEDS[p.parent]; if (!par) return;
     BREEDS[k] = Object.assign({}, par, {dog:p.name, dog0:p.name, fem:p.fem, puppyOf:p.parent}); PHOTOS[k] = PHOTOS[p.parent]; puppies[k] = p; });
 }
+/* =========================================================
+   FAMILLE (version complète, niveau 7) : quand son chien est adulte, on choisit son ami parmi les chiens adultes
+   de l'autre sexe de la meute. 1 à 3 chiots : on en garde un, les autres partent dans des familles qui les aiment.
+   Une fois tous les 3 jours, et s'il reste une place dans la meute. Jamais de vente.
+   ========================================================= */
+const isAdult = k => Math.min(seen[k] ?? dayOf(k), dayOf(k)) >= ADULT_DAY;
+function startFamily() {
+  const me = mineKey(), b = BREEDS[me];
+  const say1 = (h, t) => { modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="${h}"><h2>${h}</h2><p style="margin:0;font-weight:700">${t}</p><button class="cta">D'accord</button></div>`; modalEl.hidden = false; modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(1); }; };
+  if (!isAdult(me)) return say1('Pas encore', `${esc(b.dog)} doit d'abord devenir adulte.`);
+  if (Date.now() - (lastLitter || 0) < 3 * DAY) return say1('Bientôt', `Les derniers chiots viennent d'arriver. On attend un peu avant une nouvelle famille.`);
+  if (pack.length >= packCap()) return say1('Plus de place', `Il faut une place de plus pour un chiot : une gamelle, une niche et un enclos assez grand.`);
+  const friends = pack.filter(k => k !== me && isAdult(k) && BREEDS[k].fem !== b.fem);
+  if (!friends.length) return say1('Il faut un ami', `${esc(b.dog)} a besoin d'un ami adulte ${b.fem ? 'garçon' : 'fille'}. Garde d'autres chiens : ils grandissent avec toi !`);
+  modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Fonder une famille"><h2>Une famille ?</h2>
+    <p style="margin:0;font-weight:700">Avec qui ${esc(b.dog)} veut avoir des bébés ?</p>
+    <div class="fpick">${friends.map(k => `<button data-k="${k}"><img src="${portrait(k, ageOf(k))}" alt=""><span>${esc(BREEDS[k].dog)}</span></button>`).join('')}</div>
+    <button class="cta grey" id="faNo">Plus tard</button></div>`;
+  modalEl.hidden = false; S.heart();
+  modalEl.querySelectorAll('.fpick button').forEach(x => x.onclick = () => { S.toc(3); litter(me, x.dataset.k); });
+  document.getElementById('faNo').onclick = () => { modalEl.hidden = true; S.toc(1); };
+}
+function litter(a, c) {
+  const mom = BREEDS[a].fem ? a : c, dad = mom === a ? c : a, base = BREEDS[mom].puppyOf || mom, n = 1 + Math.floor(Math.random() * 3), used = Object.values(BREEDS).map(x => x.dog);
+  const pups = Array.from({length:n}, (_, i) => { const key = base + '-p' + (Date.now() + i).toString(36).slice(-5), fem = Math.random() < 0.5;
+    const name = NAMES.filter(x => !used.includes(x))[Math.floor(Math.random() * 6) + i] || 'Pépite'; used.push(name); return {key, fem, name}; });
+  registerPuppies(Object.fromEntries(pups.map(p => [p.key, {parent:base, fem:p.fem, name:p.name}])));
+  lastLitter = Date.now();
+  modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Des bébés !"><h2>${n > 1 ? 'Des bébés !' : 'Un bébé !'}</h2>
+    <p style="margin:0;font-weight:700">${esc(BREEDS[mom].dog)} et ${esc(BREEDS[dad].dog)} ont eu ${n > 1 ? n + ' chiots' : 'un chiot'} !${n > 1 ? '<br>Choisis celui que tu gardes :' : ''}</p>
+    <div class="fpick">${pups.map(p => `<button data-k="${p.key}"><img src="${portrait(p.key, growthOf(0))}" alt=""><span>${esc(p.name)}</span></button>`).join('')}</div></div>`;
+  modalEl.hidden = false; S.fanfare(); S.sparkle(10); buzz([30, 60, 30, 60]); speak(n > 1 ? `Des bébés ! Choisis celui que tu gardes.` : `Un bébé !`);
+  modalEl.querySelectorAll('.fpick button').forEach(x => x.onclick = () => keepPuppy(x.dataset.k, pups));
+}
+function keepPuppy(key, pups) {
+  pups.filter(p => p.key !== key).forEach(p => { delete BREEDS[p.key]; delete puppies[p.key]; delete PHOTOS[p.key]; });
+  const p = pups.find(x => x.key === key); pack.push(key); born[key] = Date.now(); seen[key] = 0;
+  dogs[key] = {g:{faim:0.8, proprete:1, jeu:0.8, calins:0.7}, en:1, bl:0, acc:null};
+  addNpc(key, SPOT.clone().add(new V3(1.3, 0, 0.2))); save();
+  const others = pups.length - 1;
+  modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Bienvenue ${esc(p.name)}"><h2>Bienvenue ${esc(p.name)} !</h2><img class="baby" src="${portrait(key, growthOf(0))}" alt="">
+    ${others ? `<p style="margin:0;font-weight:700">${others > 1 ? 'Les autres partent' : 'L\u2019autre part'} dans une famille qui va bien s'en occuper.</p>` : ''}<button class="cta">Youpi !</button></div>`;
+  S.heart(); modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); rig.head.localToWorld(headTop.set(0, 0.3, 0)); for (let i = 0; i < 10; i++) setTimeout(() => floatIcon(headTop, 'calins', i % 3 === 0), i * 80); };
+}
 function tryLitter(force) {
   const ad = pack.filter(k => force || Math.min(seen[k] ?? dayOf(k), dayOf(k)) >= ADULT_DAY);
   const mom = ad.find(k => BREEDS[k].fem), dad = ad.find(k => !BREEDS[k].fem && k !== mom);
@@ -5657,16 +5797,40 @@ function stepNourrice(dt) {
   // ceux qui rentrent de chez eux
   if (clock > NOUR.retT) { NOUR.retT = clock + 20; const k = pack.find(x => x !== breed && dogState(x).away && !isAway(x) && !npcs.some(n => n.key === x)); if (k) whenFree(() => comeBack(k)); }
 }
+/* =========================================================
+   PROGRESSION : rang de nourrice (étoiles gagnées en rendant les chiens contents) et niveau de dressage
+   ========================================================= */
+const NOUR_RANKS = [{n:'Petite pension', at:0, tip:20, lvl:1}, {n:'Pension', at:3, tip:25, lvl:2}, {n:'Super pension', at:8, tip:30, lvl:3}, {n:'Pension 5 étoiles', at:15, tip:40, lvl:3}];
+const nourRank = (st = nourStars) => NOUR_RANKS.reduce((r, x, i) => st >= x.at ? i : r, 0);
+const happyAvg = k => { const g = k === breed ? gauges : dogState(k).g; return (g.faim + g.proprete + g.jeu + g.calins) / 4; };
+function rankBar() { const r = nourRank(), cur = NOUR_RANKS[r], nx = NOUR_RANKS[r + 1];
+  const pr = nx ? (nourStars - cur.at) / (nx.at - cur.at) : 1;
+  return `<p class="rk">${cur.n}${nx ? ` · encore ${nx.at - nourStars} ★ pour « ${nx.n} »` : ' · rang maximum !'}</p><div class="rankbar"><i style="width:${Math.round(pr * 100)}%"></i></div>`; }
+function rankUp(r) {
+  const R = NOUR_RANKS[r], prev = NOUR_RANKS[r - 1], rare = R.lvl > prev.lvl;
+  modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Nouveau rang de nourrice"><h2>Nouveau rang !</h2>
+    <div class="stars">${'★'.repeat(r + 1)}</div><p style="margin:0;font-weight:800;font-size:22px">${R.n}</p>
+    <div class="rew"><div>${ICON.coin}<span>Pourboires : ${R.tip} pièces par garde</span></div>${rare ? `<div>${ICON.calins}<span>De nouvelles races vont venir !</span></div>` : ''}</div>
+    <button class="cta">Trop bien !</button></div>`;
+  modalEl.hidden = false; S.fanfare(); S.sparkle(10); buzz([30, 50, 30]); speak(`Nouveau rang : ${R.n} !`);
+  modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); };
+}
+const TRAIN_RANKS = [{n:'Débutant', at:0}, {n:'Doué', at:3}, {n:'Très doué', at:6}, {n:'Champion', at:10}];
+const trainRank = (n = learnedN()) => TRAIN_RANKS.reduce((r, x, i) => n >= x.at ? i : r, 0);
+const trainName = (r, fem) => r === 0 ? (fem ? 'Débutante' : 'Débutant') : r === 3 ? (fem ? 'Championne' : 'Champion') : TRAIN_RANKS[r].n + (fem ? 'e' : '');
 function pickup(k) {
   if (!pack.includes(k) || isAway(k)) return;
   if (k === breed) switchDog(mineKey());
-  const b = BREEDS[k], who = ownerOf(k), il = b.fem ? 'Elle' : 'Il';
+  const b = BREEDS[k], who = ownerOf(k), il = b.fem ? 'Elle' : 'Il', happy = happyAvg(k) >= 0.55, r0 = nourRank(), tipN = NOUR_RANKS[r0].tip;
+  if (happy) nourStars++;
   modalEl.innerHTML = `<div class="gift nour" role="dialog" aria-label="${who} vient chercher ${esc(b.dog)}"><h2>Ding dong !</h2>
     <div class="pair"><span class="face">${ownerFace(k)}</span><img src="${portrait(k, ageOf(k), {acc:dogState(k).acc})}" alt=""></div>
-    <p><b>${who}</b> vient chercher <b>${esc(b.dog)}</b>.<br>${il} revient demain !</p><div class="rew"><div>${ICON.coin}<span>Merci ! +20 pièces</span></div></div>
+    <p><b>${who}</b> vient chercher <b>${esc(b.dog)}</b>.<br>${il} revient demain !</p>
+    <div class="rew"><div>${ICON.coin}<span>Merci ! +${tipN} pièces</span></div><div>${ICON.star}<span>${happy ? `${il} est ${b.fem ? 'ravie' : 'ravi'} : +1 étoile de nourrice !` : `${il} avait besoin de soins : pas d'étoile cette fois.`}</span></div></div>${rankBar()}
     <button class="cta">Au revoir ${esc(b.dog)} !</button></div>`;
   modalEl.hidden = false; S.dingdong(); speak(`${who} vient chercher ${b.dog}. ${il} revient demain !`);
-  modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); earn(20); const ds = dogState(k); ds.away = tomorrow7(); ds.stay = 0;
+  modalEl.querySelector('.cta').onclick = () => { modalEl.hidden = true; S.toc(3); earn(tipN); const ds = dogState(k); ds.away = tomorrow7(); ds.stay = 0;
+    if (nourRank() > r0) setTimeout(() => rankUp(nourRank()), 900);
     const n = npcs.find(x => x.key === k); if (n) { n.leaving = true; n.ball = null; n.hunt = null; n.task = null; ds.sleeping = false; npcBark(n, 'Wouf wouf !'); } save(); };
 }
 function comeBack(k) {
@@ -5682,7 +5846,7 @@ function comeBack(k) {
    Version de test : l'achat est simulé.
    ========================================================= */
 const FREE_ITEMS = ['gamelle', 'couine', 'fleurs'];
-const fullLocked = what => !FULL.on && (what === 'balade' || what === 'circuit' || what === 'enclos' || (ITEMS[what] && !FREE_ITEMS.includes(what)));
+const fullLocked = what => !FULL.on && (what === 'balade' || what === 'circuit' || what === 'concours' || what === 'famille' || what === 'enclos' || (ITEMS[what] && !FREE_ITEMS.includes(what)));
 const freeDayDone = () => Date.now() - (born[mineKey()] || Date.now()) >= DAY;
 function askFull(why) {
   FULL.why = why; S.dingdong();
@@ -5723,7 +5887,8 @@ function unlockFull() {
 function offerDog(force) {
   OFFER.pending = false;
   if (!force && (pack.length >= packCap() || Date.now() < offerT)) return false;
-  const k = ORDER.filter(x => !pack.includes(x)).sort((a, b) => BREEDS[a].level - BREEDS[b].level)[Math.floor(Math.random() * 2)] || ORDER.find(x => !pack.includes(x)); if (!k) return false;
+  const lv = NOUR_RANKS[nourRank()].lvl, free = ORDER.filter(x => !pack.includes(x)), ok = free.filter(x => BREEDS[x].level <= lv);   // les races rares viennent avec le rang de nourrice
+  const k = (ok.length ? ok : free).sort((a, b) => BREEDS[a].level - BREEDS[b].level)[Math.floor(Math.random() * Math.min(2, (ok.length || free.length)))]; if (!k) return false;
   const b = BREEDS[k];
   modalEl.innerHTML = `<div class="gift" role="dialog" aria-label="Un nouveau chien ?"><h2>Un nouveau chien ?</h2>
     <div class="offer"><img class="ph" src="${PHOTOS[k] || ''}" alt=""><img class="toy" src="${portrait(k, growthOf(0))}" alt=""></div>
@@ -5897,6 +6062,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
