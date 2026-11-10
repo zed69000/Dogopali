@@ -322,6 +322,15 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 @keyframes gcPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
 @keyframes gcFall{to{transform:translate(var(--dx),112vh) rotate(var(--r))}}
 @keyframes gcBurst{0%{transform:translate(0,0) scale(.3);opacity:1}100%{transform:translate(var(--bx),var(--by)) scale(1.1) rotate(var(--r));opacity:0}}
+/* Version complète : écran de l'enfant, contrôle parental, écran du parent */
+.gift.full .unl{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.gift.full .unl div{display:flex;align-items:center;gap:8px;background:var(--cream);border:3px solid var(--ink);border-radius:14px;padding:6px 8px;font-weight:800;font-size:14px;line-height:1.15;text-align:left}
+.gift.full .unl svg{width:30px;height:30px;flex:none}
+.gift.full .price{font:800 26px/1 var(--font)}
+.gift.full .small{margin:0;font-size:13px;opacity:.75}
+.gift.full input{width:120px;font:800 26px/1.2 var(--font);text-align:center;border:3px solid var(--ink);border-radius:12px;padding:6px;background:#fff}
+.lockfull{position:absolute;top:4px;right:4px;background:var(--sun);border:2px solid var(--ink);border-radius:99px;padding:0 6px;font:800 11px/1.5 var(--font);color:var(--ink)}
+.item.full-locked,.acard.full-locked{position:relative;filter:saturate(.55)}
 #boot{position:fixed;inset:0;z-index:300;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .8s ease;color-scheme:light}
 #boot.out{opacity:0;pointer-events:none}
 #boot .md{font-family:'Luckiest Guy','Baloo 2',system-ui,sans-serif;font-size:clamp(46px,14vw,104px);line-height:.95;text-align:center;letter-spacing:.02em;position:relative}
@@ -592,7 +601,7 @@ body.customizing #hud,body.customizing #side,body.customizing #actions,body.cust
   <div class="tabp" data-p="garde" hidden><div class="reglages"><button class="pill" id="btnVoice" aria-pressed="false"></button></div><div class="wardrobe" id="wardrobe"></div></div>
   <div class="tabp" data-p="souv" hidden><div class="mem" id="memories"></div></div>
   <div class="tabp" data-p="chiens"><div class="grid" id="grid"></div></div>
-  <div class="devbar"><span>Outils du prototype</span><button class="pill" id="devFull">Jauges pleines</button><button class="pill" id="devEmpty">Jauges presque vides</button><button class="pill" id="devPoop">Ajouter une crotte</button><button class="pill" id="devCoins">+200 pièces</button><button class="pill" id="devDay">+1 jour (croissance)</button><button class="pill" id="devLv">+1 niveau</button><button class="pill" id="devIntro">Revoir l'intro</button><button class="pill" id="devNewDay">Nouveau jour (missions, surprise, photo)</button><button class="pill" id="devAway">Retour après 4 h</button><button class="pill" id="devRare">Moment rare</button><button class="pill" id="devSeason">Saison</button><button class="pill" id="devWx">Météo : auto</button><button class="pill" id="devNat">Nature : auto</button><button class="pill" id="devCrit">Petite bête</button><button class="pill" id="devDayPhase">Heure : auto</button><button class="pill" id="devTired">Très fatigué</button><button class="pill" id="devDig">Il gratte la terre</button><button class="pill" id="devDog">Ajouter un chien (test)</button><button class="pill" id="devBaby">Bébé (test)</button></div>
+  <div class="devbar"><span>Outils du prototype</span><button class="pill" id="devFull">Jauges pleines</button><button class="pill" id="devEmpty">Jauges presque vides</button><button class="pill" id="devPoop">Ajouter une crotte</button><button class="pill" id="devCoins">+200 pièces</button><button class="pill" id="devDay">+1 jour (croissance)</button><button class="pill" id="devLv">+1 niveau</button><button class="pill" id="devIntro">Revoir l'intro</button><button class="pill" id="devNewDay">Nouveau jour (missions, surprise, photo)</button><button class="pill" id="devAway">Retour après 4 h</button><button class="pill" id="devRare">Moment rare</button><button class="pill" id="devSeason">Saison</button><button class="pill" id="devWx">Météo : auto</button><button class="pill" id="devNat">Nature : auto</button><button class="pill" id="devCrit">Petite bête</button><button class="pill" id="devDayPhase">Heure : auto</button><button class="pill" id="devTired">Très fatigué</button><button class="pill" id="devDig">Il gratte la terre</button><button class="pill" id="devDog">Ajouter un chien (test)</button><button class="pill" id="devFullGame">Version complète : non</button><button class="pill" id="devBaby">Bébé (test)</button></div>
   <p class="credit">Photos provisoires : jeu de données Stanford Dogs (via dog.ceo), à remplacer avant publication.</p>
 </section>
 <div id="sheet" hidden></div>
@@ -1404,7 +1413,7 @@ let W = 1, H = 1;
 // ---------- âge réel : les chiens arrivent bébés et grandissent chaque jour ----------
 const DAY = 86400000, ADULT_DAY = 10;
 let born = {}, seen = {}, devDays = 0, AGE_G = 1, growB = {}, growCap = {}, custom = {};
-const FIRST = {key:null};
+const FIRST = {key:null}, FULL = {on:false, why:null};   // FULL : version complète achetée
 let xp = 0, level = 1, introDone = false, tutStep = -1, tricks = {}, accessory = null, accOwned = [], best = {};
 let pack = [], dogs = {}, puppies = {}, lastLitter = 0, offerT = 0;
 let OFFLINE_POOPS = 0, hintsDone = {}, names = {}, collarCol = {}, kennelCol = null, prefs = {}, daily = {}, finds = {}, rareSeen = {}, seasonForce = null, awayS = 0;
@@ -1447,6 +1456,7 @@ try {
     hintsDone = s.hints || {}; pack = (s.pack || []).filter(k => BREEDS[k]); dogs = s.dogs || {}; lastLitter = s.litter || 0; offerT = s.offer || 0;
     Object.keys(dogs).forEach(k => { if (k === s.breed || !BREEDS[k] || !dogs[k].g) return; Object.keys(dogs[k].g).forEach(x => dogs[k].g[x] = Math.max(0.05, dogs[k].g[x] - away * rate(x, k) * 0.35)); });
     names = s.names || {}; collarCol = s.collarCol || {}; kennelCol = s.kennelCol ?? null; prefs = s.prefs || {}; daily = s.daily || {}; finds = s.finds || {}; rareSeen = s.rares || {}; seasonForce = s.season ?? null; awayS = Math.max(0, (Date.now() - s.t) / 1000);
+    FULL.on = !!s.full || (s.pack || []).length > 1;   // ceux qui gardent déjà d'autres chiens gardent tout
     custom = s.custom || {}; FIRST.key = s.first || null; Object.keys(custom).forEach(k => BREEDS[k] && applyCustom(k));
     Object.keys(names).forEach(k => BREEDS[k] && (BREEDS[k].dog = names[k])); Object.keys(collarCol).forEach(k => BREEDS[k] && (BREEDS[k].collar = collarCol[k]));
     if (Array.isArray(s.items)) s.items.forEach(([k, x, z, r]) => ITEMS[k] && placeItem(k, x, z, r));
@@ -1457,7 +1467,7 @@ try {
 } catch (e) { if (!placed.length) placeItem('arche', 1.0, -3.2, 0.4); }
 function rate(k, br = breed) { const base = {faim:1 / 1500, proprete:1 / 2400, jeu:1 / 1200, calins:1 / 1500}[k]; return base * ((BREEDS[br].rates || {})[k] || 1) * (br === breed && (k === 'faim' || k === 'calins') ? 1 + 0.4 * (1 - AGE_G) : 1); }
 let RESETTING = false;
-function save() { if (RESETTING) return; try { localStorage.setItem(SAVE, JSON.stringify({breed, g:gauges, t:Date.now(), poops:poops.map(p => [p.position.x, p.position.z]), coins, enc:ENC.lv, born, seen, devDays, growB, growCap, gp:GROWP, custom, first:FIRST.key, xp, level, intro:introDone, tut:tutStep, tricks, acc:accessory, accs:accOwned, best, hints:hintsDone, pack, dogs:(storeCur(), dogs), puppies, litter:lastLitter, offer:offerT, bl:+(D.bladder || 0).toFixed(3), en:+(D.energy ?? 1).toFixed(3), names, collarCol, kennelCol, prefs, daily, finds, rares:rareSeen, season:seasonForce, items:placed.filter(p => !sel || p !== sel.it || !sel.isNew).map(p => [p.kind, +p.x.toFixed(2), +p.z.toFixed(2), +p.rot.toFixed(2)])})); } catch (e) {} }
+function save() { if (RESETTING) return; try { localStorage.setItem(SAVE, JSON.stringify({full:FULL.on, breed, g:gauges, t:Date.now(), poops:poops.map(p => [p.position.x, p.position.z]), coins, enc:ENC.lv, born, seen, devDays, growB, growCap, gp:GROWP, custom, first:FIRST.key, xp, level, intro:introDone, tut:tutStep, tricks, acc:accessory, accs:accOwned, best, hints:hintsDone, pack, dogs:(storeCur(), dogs), puppies, litter:lastLitter, offer:offerT, bl:+(D.bladder || 0).toFixed(3), en:+(D.energy ?? 1).toFixed(3), names, collarCol, kennelCol, prefs, daily, finds, rares:rareSeen, season:seasonForce, items:placed.filter(p => !sel || p !== sel.it || !sel.isNew).map(p => [p.kind, +p.x.toFixed(2), +p.z.toFixed(2), +p.rot.toFixed(2)])})); } catch (e) {} }
 function randFree() { for (let i = 0; i < 30; i++) { const a = Math.random() * PI * 2, r = 1.2 + Math.random() * (encR() - 2.2), p = new V3(Math.sin(a) * r, 0, Math.cos(a) * r); if (free(p.x, p.z, 0.3)) return p; } return new V3(2, 0, -1); }
 
 
@@ -2042,14 +2052,16 @@ function renderShelf() {
   if (ENC.lv < 2) { const pr = ENC_PRICE[ENC.lv], b = document.createElement('button'); b.className = 'item enc'; if (coins < pr) b.disabled = true;
     b.innerHTML = `<span class="encico">${ICON.decor}</span><b>Agrandir l'enclos</b><span class="price">${ICON.coin}${pr}</span>`; b.setAttribute('aria-label', `Agrandir l'enclos, ${pr} pièces`);
     if (level >= 3 && pack.length < 4 && prepNeeds().enc) { b.classList.add('need'); b.dataset.need = 'Il le faut !'; }
-    b.onclick = () => growEnclosure(); shelf.appendChild(b); }
+    if (fullLocked('enclos')) { b.classList.add('full-locked'); b.disabled = false; b.insertAdjacentHTML('beforeend', '<i class="lockfull">Complète</i>'); b.onclick = () => askFull('enclos'); }
+    else b.onclick = () => growEnclosure(); shelf.appendChild(b); }
   KINDS.forEach(k => {
     const d = ITEMS[k], b = document.createElement('button'); b.className = 'item';
     if (level >= 3 && pack.length < 4) { const nd = prepNeeds(); if ((k === 'gamelle' && nd.gamelle) || (k === 'panier' && nd.panier)) { b.classList.add('need'); b.dataset.need = 'Il en faut !'; } }
     if (coins < d.price) b.disabled = true;
     b.innerHTML = `<img src="${thumbs[k] || ''}" alt=""><b>${d.name}</b><span class="price">${ICON.coin}${d.price}</span>`;
     b.setAttribute('aria-label', `${d.name}, ${d.price} pièces`);
-    b.onclick = () => { S.pop(); buy(k); }; shelf.appendChild(b);
+    if (fullLocked(k)) { b.classList.add('full-locked'); b.disabled = false; b.insertAdjacentHTML('beforeend', '<i class="lockfull">Complète</i>'); b.onclick = () => askFull(k); }
+    else b.onclick = () => { S.pop(); buy(k); }; shelf.appendChild(b);
   });
 }
 function validSpot(it) { return Math.hypot(it.x, it.z) + it.r * 0.6 < encR() - 0.35 && free(it.x, it.z, 0.05, it) && Math.hypot(it.x - D.pos.x, it.z - D.pos.z) > 0 ; }
@@ -3076,11 +3088,12 @@ const panel = document.getElementById('panel');
 function openActivities() {
   const list = [['eduquer', 'Éduquer', 'Apprendre des tours'], ['balade', 'Balade', 'En laisse au parc'], ['circuit', 'Circuit', "Parcours d'agilité"], ['decorer', 'Décorer', 'Le jardin']];
   panel.innerHTML = `<div class="prow"><span class="ptitle">Activités</span><button class="cta small" id="pClose">Fermer</button></div>
-    <div class="acts">${list.map(([a, n, d]) => `<button class="acard ${unlockedAt(a) ? '' : 'locked'}" data-a="${a}">${ICON[ACT_ICO[a]]}<span>${n}</span><small>${unlockedAt(a) ? d : 'Niveau ' + UNLOCK[a]}</small></button>`).join('')}</div>`;
+    <div class="acts">${list.map(([a, n, d]) => `<button class="acard ${unlockedAt(a) ? '' : 'locked'} ${fullLocked(a) ? 'full-locked' : ''}" data-a="${a}">${ICON[ACT_ICO[a]]}<span>${n}</span><small>${unlockedAt(a) ? d : 'Niveau ' + UNLOCK[a]}</small>${fullLocked(a) ? '<i class="lockfull">Complète</i>' : ''}</button>`).join('')}</div>`;
   panel.hidden = false; document.getElementById('actions').hidden = true;
   panel.querySelector('#pClose').onclick = closePanel;
   panel.querySelectorAll('.acard').forEach(b => b.onclick = () => {
     const a = b.dataset.a; if (!unlockedAt(a)) { S.deny(); tip(b, `Niveau ${UNLOCK[a]}`); return; }
+    if (fullLocked(a)) { closePanel(); askFull(a); return; }
     S.toc(2); closePanel();
     if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'balade') startWalk(); else if (a === 'circuit') startAgility();
   });
@@ -5662,6 +5675,51 @@ function comeBack(k) {
   const n = addNpc(k, new V3(0, 0, encR() - 0.4), PI); n.target = npcSpot(); n.act = 'run'; n.spd = 2.6; npcBark(n, 'Coucou !');
   miniToast(`<img src="${portrait(k, ageOf(k), {acc:ds.acc})}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`, `${b.dog} est de retour !`, `${ownerOf(k)} te l'a ramené${b.fem ? 'e' : ''}`); S.dingdong(); S.heart(); save();
 }
+/* =========================================================
+   VERSION COMPLÈTE (2,99 €, un seul achat) : gratuit = son chien (soins, balle, bain, dressage, croissance) ;
+   la version complète débloque la garde d'autres chiens, les balades et le circuit, les objets et l'enclos.
+   La garde n'est proposée qu'après une journée de jeu ; l'achat passe par un parent (contrôle parental).
+   Version de test : l'achat est simulé.
+   ========================================================= */
+const FREE_ITEMS = ['gamelle', 'couine', 'fleurs'];
+const fullLocked = what => !FULL.on && (what === 'balade' || what === 'circuit' || what === 'enclos' || (ITEMS[what] && !FREE_ITEMS.includes(what)));
+const freeDayDone = () => Date.now() - (born[mineKey()] || Date.now()) >= DAY;
+function askFull(why) {
+  FULL.why = why; S.dingdong();
+  const head = why === 'garde' ? 'Un chiot attend devant le portail !' : why === 'balade' || why === 'circuit' ? 'Les balades !' : 'Plus de jouets !';
+  const unl = [[ICON.calins, 'Garder d\u2019autres chiens'], [ICON.walk, 'Balades et circuit'], [ICON.decor, 'Tous les objets'], [ICON.paw, 'Un plus grand jardin']];
+  modalEl.innerHTML = `<div class="gift full" role="dialog" aria-label="Version complète"><h2>${head}</h2>
+    <div class="unl">${unl.map(([i, t]) => `<div>${i}<span>${t}</span></div>`).join('')}</div>
+    <button class="cta big2" id="fuAsk">Demande à un grand !</button><button class="cta grey" id="fuLater">Plus tard</button></div>`;
+  modalEl.hidden = false; speak(head + ' Demande à un grand !');
+  document.getElementById('fuAsk').onclick = () => { S.toc(3); parentGate(); };
+  document.getElementById('fuLater').onclick = () => { modalEl.hidden = true; S.toc(1); };
+}
+// contrôle parental : une addition écrite en lettres, à taper en chiffres (un enfant de 5 à 9 ans ne passe pas)
+function parentGate() {
+  const W = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'];
+  const a = 6 + Math.floor(Math.random() * 7), b = 5 + Math.floor(Math.random() * 8);
+  modalEl.innerHTML = `<div class="gift full" role="dialog" aria-label="Pour les parents"><h2>Pour les parents</h2>
+    <p style="margin:0;font-weight:700">Écris le résultat en chiffres :<br><b>${W[a]} plus ${W[b]}</b></p>
+    <input id="fuNum" inputmode="numeric" maxlength="3" autocomplete="off"><button class="cta" id="fuOk">Valider</button><button class="cta grey" id="fuBack">Retour</button></div>`;
+  const inp = document.getElementById('fuNum');
+  document.getElementById('fuOk').onclick = () => { if (+inp.value === a + b) { S.toc(3); parentOffer(); } else { S.deny(); modalEl.hidden = true; } };
+  document.getElementById('fuBack').onclick = () => { modalEl.hidden = true; S.toc(1); };
+}
+function parentOffer() {
+  modalEl.innerHTML = `<div class="gift full" role="dialog" aria-label="Version complète de Dogopali"><h2>Version complète</h2>
+    <div class="unl"><div>${ICON.calins}<span>Garder d\u2019autres chiens (nourrice)</span></div><div>${ICON.walk}<span>Balades, paysages et circuit</span></div><div>${ICON.decor}<span>Tous les objets du jardin</span></div><div>${ICON.paw}<span>Un enclos plus grand</span></div></div>
+    <div class="price">2,99 €</div><p class="small">Un seul achat, sans abonnement et sans publicité.<br>Version de test : l\u2019achat est simulé, rien n\u2019est payé.</p>
+    <button class="cta big2" id="fuBuy">Débloquer (2,99 €)</button><button class="cta grey" id="fuNo">Pas maintenant</button></div>`;
+  document.getElementById('fuBuy').onclick = () => { modalEl.hidden = true; unlockFull(); };
+  document.getElementById('fuNo').onclick = () => { modalEl.hidden = true; S.toc(1); };
+}
+function unlockFull() {
+  FULL.on = true; save(); S.fanfare(); S.sparkle(10); buzz([30, 50, 30]); say('Youpi !', 'big'); jump(6);
+  miniToast(ICON.star, 'Version complète !', 'Tout est débloqué. Merci !', 4000);
+  if (mode === 'decor') renderShelf();
+  if (FULL.why === 'garde') setTimeout(() => whenFree(() => offerDog(true)), 1500);
+}
 function offerDog(force) {
   OFFER.pending = false;
   if (!force && (pack.length >= packCap() || Date.now() < offerT)) return false;
@@ -5690,10 +5748,14 @@ function prepCard() {
   document.getElementById('prepGo').onclick = () => { modalEl.hidden = true; S.toc(3); setMode('decor'); };
   document.getElementById('prepLater').onclick = () => { modalEl.hidden = true; S.toc(1); };
 }
-setInterval(() => { if (!introDone || tutStep !== -2 || level < 3 || pack.length >= 4 || pack.length < packCap() || !modalEl.hidden || mode !== 'cuddle') return;
-  const today = new Date().toDateString(); if (hintsDone.prepDay === today) return; hintsDone.prepDay = today; save(); whenFree(prepCard); }, 9000);
-setInterval(() => { if (OFFER.pending || !introDone || tutStep !== -2 || pack.length >= packCap() || Date.now() < offerT) return; OFFER.pending = true; whenFree(() => offerDog()); }, 6000);
+setInterval(() => { if (!introDone || tutStep !== -2 || level < 3 || pack.length >= 4 || (FULL.on && pack.length < packCap()) || !modalEl.hidden || mode !== 'cuddle') return;
+  if (!FULL.on && !freeDayDone()) return;
+  const today = new Date().toDateString(); if (hintsDone.prepDay === today) return; hintsDone.prepDay = today; save(); whenFree(FULL.on ? prepCard : () => askFull('garde')); }, 9000);
+setInterval(() => { if (!FULL.on || OFFER.pending || !introDone || tutStep !== -2 || pack.length >= packCap() || Date.now() < offerT) return; OFFER.pending = true; whenFree(() => offerDog()); }, 6000);
 document.getElementById('devDog').onclick = () => { album.hidden = true; setTimeout(() => offerDog(true), 300); };
+{ const b = document.getElementById('devFullGame'), lab = () => b.textContent = 'Version complète : ' + (FULL.on ? 'oui' : 'non'); lab();
+  b.onclick = () => { FULL.on = !FULL.on; save(); lab(); }; }
+try { const q = new URLSearchParams(location.search).get('full'); if (q !== null) { FULL.on = q === '1'; save(); } } catch (e) {}
 document.getElementById('devBaby').onclick = () => { album.hidden = true; if (!tryLitter(true)) { S.deny(); } };
 /* ---------- boutons ---------- */
 document.getElementById('btnCall').innerHTML = ICON.whistle;
@@ -5835,6 +5897,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
