@@ -3255,7 +3255,7 @@ function buildWalk(biome) {
 }
 /* ---------- les petites bêtes de la balade ---------- */
 function walkAnimal(kind) {
-  const g = grp(WK.sc), u = {kind, legs:[]};
+  const g = grp(WK.sc), u = {kind, legs:[], wings:[]};   // makeBird remplit wings (sans elle, une balade avec un oiseau plantait)
   if (kind === 'lapin') { const c = natSeason() === 'hiver' ? 0xf4f4f0 : 0xb89a7a;
     ell(g, 0.16, 0.14, 0.2, c, [0, 0.16, 0]); ell(g, 0.11, 0.1, 0.11, c, [0, 0.27, 0.15]); [-1, 1].forEach(s => { ell(g, 0.03, 0.12, 0.02, c, [s * 0.04, 0.42, 0.12], {r:[-0.2, 0, s * 0.15]}); ell(g, 0.015, 0.015, 0.012, 0x14100e, [s * 0.05, 0.3, 0.24], {outline:false}); });
     ell(g, 0.06, 0.06, 0.06, 0xffffff, [0, 0.2, -0.2], {outline:false}); ell(g, 0.02, 0.016, 0.015, 0xff8fb1, [0, 0.27, 0.26], {outline:false}); }
@@ -4964,10 +4964,10 @@ function stepBath(dt) {
   if ((BATH.sprayT += dt) > 0.025) { BATH.sprayT = 0;
     if (Math.random() < 0.7) spawn(sprayHit.clone(), new V3((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), 0xbfeaff, 0.025, 0.4, 9);
   }
-  if (!h) return;
-  D.lastPet = clock; petPoint.copy(h.point); petDist += 6;
+  if (h) { D.lastPet = clock; petPoint.copy(h.point); petDist += 6; }
+  // la mousse part autour du point touché, mais aussi le long du jet : celle qui dépasse (au-dessus de la tête, dans les poils) se rince aussi
   const wp = new V3();
-  for (let i = foam.length - 1; i >= 0; i--) { foam[i].getWorldPosition(wp); const f = foam[i]; if (wp.distanceTo(sprayHit) > 0.32) continue;
+  for (let i = foam.length - 1; i >= 0; i--) { foam[i].getWorldPosition(wp); const f = foam[i]; if (wp.distanceTo(sprayHit) > 0.32 && ray.ray.distanceToPoint(wp) > 0.2) continue;
     f.userData.hp = (f.userData.hp ?? 0.35) - dt; if (!f.userData.s0) f.userData.s0 = f.scale.x; f.scale.setScalar(f.userData.s0 * Math.max(0.35, f.userData.hp / 0.35));
     if (f.userData.hp <= 0) { f.parent && f.parent.remove(f); foam.splice(i, 1);
     spawn(wp.clone(), new V3((Math.random() - 0.5) * 0.6, -0.4, (Math.random() - 0.5) * 0.6), 0xffffff, 0.04, 0.6, 6, true); S.pop(); gauges.proprete = Math.min(0.85, gauges.proprete + 0.006); } }
