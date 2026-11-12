@@ -824,7 +824,18 @@ const basic = (c, o = 1) => basicCache[c + '_' + o] || (basicCache[c + '_' + o] 
 let RIM = false;
 const geoCache = {};
 const G = (k, f) => geoCache[k] || (geoCache[k] = f());
-const UNIT = G('unit', () => new THREE.SphereGeometry(1, 24, 18));
+const UNIT = G('unit', () => { const g = new THREE.SphereGeometry(1, 24, 18), p = g.attributes.position, ly = new Float32Array(p.count); for (let i = 0; i < p.count; i++) ly[i] = p.getY(i); g.setAttribute('ly', new THREE.BufferAttribute(ly, 1)); return g; });
+// plusieurs masses rondes fusionnées en un seul mesh (un appel de dessin), chacune garde son propre dégradé ; grow = l'enveloppe du contour
+function blobGeo(key, masses, grow = 0) {
+  return G('blob' + key + '_' + grow, () => { const src = new THREE.SphereGeometry(1, 14, 10), P = src.attributes.position, N = src.attributes.normal, I = src.index.array, pos = [], nor = [], ly = [], idx = [];
+    masses.forEach(([x, y, z, rx, ry = rx, rz = rx]) => { const b = pos.length / 3; for (let i = 0; i < P.count; i++) { pos.push(x + P.getX(i) * (rx + grow), y + P.getY(i) * (ry + grow), z + P.getZ(i) * (rz + grow)); nor.push(N.getX(i), N.getY(i), N.getZ(i)); ly.push(P.getY(i)); } for (let i = 0; i < I.length; i++) idx.push(b + I[i]); });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('ly', new THREE.Float32BufferAttribute(ly, 1)); g.setIndex(idx); g.computeBoundingSphere(); return g; });
+}
+function blob(parent, key, masses, mat, o = {}) {
+  const m = new THREE.Mesh(blobGeo(key, masses), mat); m.castShadow = !!o.shadow; m.receiveShadow = false;
+  if (o.outline !== false) { const l = new THREE.Mesh(blobGeo(key, masses, o.ow || 0.06), lineMat); l.castShadow = false; m.add(l); }
+  if (o.s) m.scale.set(...o.s); if (o.p) m.position.set(...o.p); parent.add(m); return m;
+}
 // capsule effilée de y=0 (rayon r1) à y=len (rayon r2)
 function taper(r1, r2, len, seg = 16) {
   return G(`t${r1.toFixed(3)}_${r2.toFixed(3)}_${len.toFixed(3)}`, () => {
@@ -1176,14 +1187,41 @@ function walkable(x, z, m = 0) { const r = encR(); if (Math.hypot(x, z) < r - m)
   if (Math.abs(z) < 0.8 - m * 0.5 && x < 0 && x > -r - 0.5) return true;   // passage vers les niches
   if (Math.abs(x) < 0.8 - m * 0.5 && z < 0 && z > -r - 0.5) return true;   // passage vers le salon
   return inRect(yardN(), x, z, m) || inRect(yardS(), x, z, m); }
+/* DÉCOR DOUX ET ROND (DA) : un matériau toon en dégradé (clair en haut, plus foncé en bas de chaque masse),
+   des arbres en plusieurs masses avec un tronc évasé, des buissons en bulles, des poteaux à tête ronde. */
+const softCache = {};
+function softMat(c, lo = 0.72, hi = 1.12) {
+  const key = c + '_' + lo + '_' + hi; if (softCache[key]) return softCache[key];
+  const m = new THREE.MeshToonMaterial({color:c, gradientMap:grad});
+  m.onBeforeCompile = sh => { sh.vertexShader = 'attribute float ly;\nvarying float vLy;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLy = ly;');
+    sh.fragmentShader = 'varying float vLy;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', `vec4 diffuseColor = vec4( diffuse * mix(${lo.toFixed(2)}, ${hi.toFixed(2)}, smoothstep(-1.0, 1.0, vLy)), opacity );`); };
+  m.customProgramCacheKey = () => 'soft' + key; return softCache[key] = m;
+}
+// tronc évasé au pied (empattement cartoon), en un seul tour
+const trunkGeo = () => G('trunk2', () => { const pts = [[0.001, 0], [0.34, 0], [0.3, 0.05], [0.22, 0.16], [0.17, 0.35], [0.15, 0.9], [0.14, 1.45], [0.001, 1.5]].map(([x, y]) => new THREE.Vector2(x, y)); return new THREE.LatheGeometry(pts, 10); });
+function cartoonTree(parent, x, z, k, c, far) {
+  const t = grp(parent, [x, 0, z]); t.userData.occR = 1.15 * k;
+  mesh(t, trunkGeo(), 0x8a5a36, {s:[k, k, k], outline:false, shadow:!far});
+  const masses = far ? [[0, 2.0, 0, 0.92], [-0.6, 1.7, 0.1, 0.62], [0.62, 1.72, 0, 0.64], [0, 2.55, 0, 0.55]]
+    : [[0, 2.05, 0, 0.9], [-0.62, 1.72, 0.12, 0.62], [0.64, 1.76, -0.05, 0.66], [0.08, 1.66, 0.56, 0.58], [-0.1, 1.7, -0.56, 0.6], [0.05, 2.6, 0.02, 0.56]];
+  blob(t, far ? 'treeF' : 'treeN', masses, softMat(c), {s:[k, k, k], ow:0.05, outline:!far, shadow:!far});
+  return t;
+}
+function bush(parent, x, z, k, c = 0x5fae4e) {
+  const b = grp(parent, [x, 0, z]);
+  blob(b, 'bush', [[0, 0.32, 0, 0.36, 0.33], [-0.32, 0.22, 0.05, 0.26, 0.24], [0.33, 0.24, -0.02, 0.28, 0.26], [0.05, 0.2, 0.28, 0.22, 0.2]], softMat(c, 0.7, 1.15), {s:[k, k, k], ow:0.05});
+  return b;
+}
+// poteau de barrière : tête ronde et pied évasé
+const postGeo = () => G('post2', () => { const pts = [[0.001, 0], [0.105, 0], [0.09, 0.06], [0.075, 0.14], [0.072, 0.68], [0.066, 0.76], [0.045, 0.82], [0.001, 0.845]].map(([x, y]) => new THREE.Vector2(x, y)); return new THREE.LatheGeometry(pts, 8); });
 function buildFence() {
   if (ENC.g) scene.remove(ENC.g); const F = grp(scene), r = encR(), n = Math.round(64 * r / 6.6); ENC.g = F;
   for (let i = 0; i < n; i++) { const a = i / n * PI * 2; if (Math.cos(a) > 0 && Math.abs(Math.sin(a) * r) < 0.78) continue;
     // passages vers les cours (niches à gauche, salon au fond)
     if ((Math.sin(a) < 0 && Math.abs(Math.cos(a) * r) < 0.85) || (Math.cos(a) < 0 && Math.abs(Math.sin(a) * r) < 0.85)) continue;
-    mesh(F, G('post', () => new THREE.BoxGeometry(0.14, 0.75, 0.08)), 0xc98a5a, {p:[Math.sin(a) * r, 0.37, Math.cos(a) * r], r:[0, a, 0], ow:0.12}); }
+    mesh(F, postGeo(), 0xc98a5a, {p:[Math.sin(a) * r, 0, Math.cos(a) * r], r:[0, a, 0], ow:0.1}); }
   const gap = 0.86 / r, segs = [[gap, PI - gap], [PI + gap, 1.5 * PI - gap], [1.5 * PI + gap, 2 * PI - gap]];   // entre l'arche, le salon et les niches
-  [0.28, 0.56].forEach(y => segs.forEach(([a0, a1]) => mesh(F, new THREE.TorusGeometry(r, 0.04, 6, Math.ceil(40 * (a1 - a0)), a1 - a0).rotateX(PI / 2), 0xe0a868, {outline:false, r:[0, -(PI / 2 - a1), 0], p:[0, y, 0]})));
+  [0.3, 0.58].forEach(y => segs.forEach(([a0, a1]) => mesh(F, new THREE.TorusGeometry(r, 0.055, 6, Math.ceil(40 * (a1 - a0)), a1 - a0).rotateX(PI / 2), 0xe0a868, {ow:0.25, r:[0, -(PI / 2 - a1), 0], p:[0, y, 0]})));
   // au-delà de la clôture : la parcelle à gagner, piquets et petits fanions
   if (ENC.lv < ENC_TOP) { const r2 = ENC_R[ENC.lv + 1]; for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + 0.1; if (Math.cos(a) > 0.85) continue; const p = grp(F, [Math.sin(a) * r2, 0, Math.cos(a) * r2], [0, a, 0]);
     mesh(p, G('stake', () => new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6)), 0xc98a5a, {p:[0, 0.25, 0], outline:false}); mesh(p, G('flag', () => new THREE.ConeGeometry(0.08, 0.16, 3).rotateZ(-PI / 2)), i % 2 ? 0xffc94a : 0xe8566b, {p:[0.07, 0.45, 0], outline:false}); } }
@@ -1198,24 +1236,41 @@ buildFence();
 function buildSurround() {
   if (ENC.sur) scene.remove(ENC.sur); const S2 = grp(scene), r = encR(), R2 = rng(11); ENC.sur = S2; ENC.trees = [];
   // arbres légers : un seul contour (la grosse boule), pas d'ombre pour les bois lointains
-  const wood = 0xc98a5a, roundT = (x, z, k, c, far) => { const t = grp(S2, [x, 0, z]); t.userData.occR = 1.15 * k; ENC.trees.push(t); mesh(t, G('trk', () => new THREE.CylinderGeometry(0.16, 0.24, 1.4, 8)), 0x8a5a36, {p:[0, 0.7, 0], s:[k, k, k], outline:false, shadow:!far});
-    [[0, 1.9, 0, 0.95], [-0.55, 1.6, 0.2, 0.65], [0.55, 1.65, -0.1, 0.7]].forEach(([x2, y, z2, rr], i) => ell(t, rr * k, rr * k, rr * k, c, [x2 * k, y * k, z2 * k], {ow:0.05, outline:i === 0 ? undefined : false, shadow:!far && i === 0})); return t; };
+  const wood = 0xc98a5a, roundT = (x, z, k, c, far) => { const t = cartoonTree(S2, x, z, k, c, far); ENC.trees.push(t); return t; };
   // l'eau : un anneau autour de l'île, et un pont là où passe le chemin
-  const w = new THREE.Mesh(new THREE.RingGeometry(r + 4.4, r + 6.4, 72), toon(0x7cc8ea, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
+  const w = new THREE.Mesh(new THREE.RingGeometry(r + 4.4, r + 6.4, 72), toon(0x6fc0e8, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
+  [[r + 4.4, r + 4.95, 0xa6dcf4, -0.015], [r + 5.85, r + 6.4, 0xa6dcf4, -0.015]].forEach(([a, b, c, y]) => { const m = new THREE.Mesh(new THREE.RingGeometry(a, b, 72), basic(c)); m.rotation.x = -PI / 2; m.position.y = y; S2.add(m); });   // bords clairs
+  const foam = new THREE.Mesh(new THREE.TorusGeometry(r + 4.42, 0.06, 6, 90), basic(0xffffff, 0.85)); foam.rotation.x = PI / 2; foam.position.y = 0.0; S2.add(foam);   // liseré d'écume
   const br = grp(S2, [0, 0, r + 5.4]); mesh(br, new THREE.BoxGeometry(1.9, 0.1, 2.9), wood, {p:[0, 0.08, 0], receive:true, shadow:false});
   [-1, 1].forEach(sx => { mesh(br, new THREE.BoxGeometry(0.08, 0.08, 2.9), 0x9a6a42, {p:[sx * 0.9, 0.5, 0], shadow:false, outline:false}); [-1.3, 0, 1.3].forEach(z => mesh(br, new THREE.BoxGeometry(0.1, 0.45, 0.1), 0x9a6a42, {p:[sx * 0.9, 0.3, z], shadow:false, outline:false})); });
   for (let i = 0; i < 14; i++) { const a = R2() * PI * 2, rr = (R2() < 0.5 ? r + 4.35 : r + 6.45) + (R2() - 0.5) * 0.2; if (Math.abs(Math.sin(a) * rr) < 1.4 && Math.cos(a) > 0) continue;
-    ell(S2, 0.35 + R2() * 0.3, 0.22 + R2() * 0.15, 0.3 + R2() * 0.25, [0xb0aba2, 0x9f9a92][i % 2], [Math.sin(a) * rr, 0.05, Math.cos(a) * rr], {outline:false, shadow:false}); }
+    ell(S2, 0.35 + R2() * 0.3, 0.24 + R2() * 0.15, 0.3 + R2() * 0.25, softMat([0xb9b4ac, 0xa7a29a][i % 2], 0.78, 1.12), [Math.sin(a) * rr, 0.06, Math.cos(a) * rr], {ow:0.06, shadow:false}); }
   for (let i = 0; i < 10; i++) { const a = R2() * PI * 2, rr = r + 4.8 + R2() * 1.2; if (Math.abs(Math.sin(a) * rr) < 1.5 && Math.cos(a) > 0) continue;
-    mesh(S2, G('lily', () => new THREE.CylinderGeometry(0.28, 0.28, 0.02, 14, 1, false, 0.4, PI * 1.8)), 0x5fae4e, {outline:false, shadow:false, p:[Math.sin(a) * rr, 0.0, Math.cos(a) * rr], r:[0, R2() * 6, 0]}); }
-  const dk = grp(S2, [r + 4.7, 0, -1.6], [0, -PI / 2, 0]); mesh(dk, new THREE.BoxGeometry(1.3, 0.08, 1.6), wood, {p:[0, 0.12, 0.5], receive:true, shadow:false});
+    mesh(S2, G('lily', () => new THREE.CylinderGeometry(0.28, 0.28, 0.02, 14, 1, false, 0.4, PI * 1.8)), 0x5fae4e, {outline:false, shadow:false, p:[Math.sin(a) * rr, 0.0, Math.cos(a) * rr], r:[0, R2() * 6, 0]}); if (i % 3 === 0) ell(S2, 0.08, 0.07, 0.08, 0xff8fb1, [Math.sin(a) * rr + 0.05, 0.06, Math.cos(a) * rr], {ow:0.2, shadow:false}); }
+  const dk = grp(S2, [r + 4.7, 0, -1.6], [0, -PI / 2, 0]); for (let i = 0; i < 6; i++) mesh(dk, G('plank', () => new THREE.BoxGeometry(1.3, 0.08, 0.24)), i % 2 ? wood : 0xd9a066, {p:[0, 0.12, -0.25 + i * 0.27], ow:0.08, shadow:false});
   [-1, 1].forEach(sx => [0, 1].forEach(sz => mesh(dk, new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), 0x9a6a42, {p:[sx * 0.55, -0.05, sz * 1.1], shadow:false, outline:false})));
+  // buissons en bulles le long de la clôture, sauf devant les passages
+  for (let i = 0; i < 22; i++) { const a = i / 22 * PI * 2 + 0.12, rr = r + 0.55, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
+    if ((Math.abs(x) < 1.6 && z > 0) || (Math.abs(z) < 1.4 && x < 0) || (Math.abs(x) < 2.6 && z < 0)) continue; bush(S2, x, z, 0.75 + R2() * 0.4, [0x5fae4e, 0x6cbf55, 0x4fa046][i % 3]); }
+  { const sg = grp(S2, [1.5, 0, r + 1.0], [0, -0.3, 0]); mesh(sg, G('sgpost', () => new THREE.CylinderGeometry(0.06, 0.08, 1.2, 8)), 0x9a6a42, {p:[0, 0.6, 0]});   // la pancarte de la balade
+    mesh(sg, G('sgboard', () => new THREE.BoxGeometry(0.9, 0.34, 0.07)), 0xe0a050, {p:[0.25, 1.0, 0], ow:0.1}); mesh(sg, G('sgtip', () => new THREE.ConeGeometry(0.17, 0.22, 3).rotateZ(-PI / 2)), 0xe0a050, {p:[0.8, 1.0, 0], s:[1, 1, 0.4], ow:0.1});
+    ell(sg, 0.07, 0.07, 0.03, 0xfff8ec, [0.2, 0.98, 0.05], {outline:false, shadow:false}); [[-0.08, 0.07], [0.08, 0.07], [-0.13, -0.02], [0.13, -0.02]].forEach(([x2, y]) => ell(sg, 0.03, 0.03, 0.02, 0xfff8ec, [0.2 + x2, 0.98 + y + 0.02, 0.05], {outline:false, shadow:false})); }
   // l'anneau d'arbres entre la clôture et l'eau (ni devant le chemin, ni devant le salon)
   for (let i = 0; i < 26; i++) { const a = i / 26 * PI * 2 + R2() * 0.1, rr = r + 1.4 + R2() * 2.4, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
     if (Math.abs(x) < 2.2 && z > 0) continue; if (inRect(yardN(), x, z, -0.9) || inRect(yardS(), x, z, -0.9)) continue;   // pas dans les cours
     roundT(x, z, 0.8 + R2() * 0.45, i % 7 === 3 ? 0xf0a040 : [0x4fa046, 0x5fae4e, 0x47963f][i % 3]); }
+  // la forêt au-delà de l'eau, tout autour (sauf l'ouverture du chemin)
+  for (let i = 0; i < 34; i++) { const a = i / 34 * PI * 2 + R2() * 0.15, rr = r + 7.0 + R2() * 4.5, x = Math.sin(a) * rr, z = Math.cos(a) * rr; if (Math.abs(x) < 1.8 && z > 0) continue;
+    roundT(x, z, 1.0 + R2() * 0.7, R2() < 0.15 ? 0xf0a040 : [0x3f8a3a, 0x4fa046, 0x47963f, 0x5fae4e][i % 4], true); }
+  // le chemin de la balade : de la sortie du pont, il serpente jusque dans les bois (bords ronds, galets le long)
+  { const pts = [], N = 22; for (let i = 0; i <= N; i++) { const t = i / N; pts.push([Math.sin(t * 4.2) * 1.3 * t, r + 6.6 + t * 13]); }
+    const pos = [], idx = []; pts.forEach(([x, z], i) => { const [x2, z2] = pts[Math.min(i + 1, N)], [x0, z0] = pts[Math.max(i - 1, 0)], dx = x2 - x0, dz = z2 - z0, l = Math.hypot(dx, dz), w = 0.75 - i / N * 0.2, nx = dz / l * w, nz = -dx / l * w;
+      pos.push(x + nx, 0.012, z + nz, x - nx, 0.012, z - nz); if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i); });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const pm = new THREE.Mesh(g, toon(0xe6cf98, false)); pm.material.side = THREE.DoubleSide; pm.receiveShadow = true; S2.add(pm);
+    pts.forEach(([x, z], i) => { if (i % 2 || i < 2) return; const sx = i % 4 ? 1 : -1; ell(S2, 0.16, 0.1, 0.13, softMat(0xb9b4ac, 0.78, 1.12), [x + sx * 0.95, 0.03, z], {ow:0.1, shadow:false}); }); }
   // les bois au bout du chemin, après le pont
-  for (let i = 0; i < 12; i++) { const sx = i % 2 ? 1 : -1, x = sx * (1.7 + R2() * 4.5), z = r + 7.2 + R2() * 5.5; roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); }
+  for (let i = 0; i < 16; i++) { const sx = i % 2 ? 1 : -1, z = r + 7.2 + R2() * 11, x = Math.sin((z - r - 6.6) / 13 * 4.2) * 1.3 * (z - r - 6.6) / 13 + sx * (2.0 + R2() * 4); roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); if (i % 2) bush(S2, x - sx * 0.8, z - 0.6, 0.9, 0x47963f); }
 }
 // portail de devant (la propriétaire entre par là dans l'intro)
 const gate = grp(scene, [0, 0, encR() - 0.02]); ENC.gate = gate; ENC.ready = true; buildSurround();
@@ -1243,7 +1298,7 @@ const kennelBody = kennelWalls[0];
   [-1, 1].forEach(sx => [-1, 1].forEach(sy => ell(bone, 0.06, 0.06, 0.035, 0xfff8ec, [sx * 0.16, sy * 0.04, 0], {ow:0.12}))); }
 const tree = grp(scene, [3.05, 0, -2.55]);
 mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8, 0]});
-[[0, 2.1, 0, 1.0], [-0.6, 1.75, 0.25, 0.7], [0.6, 1.8, -0.1, 0.75], [0.1, 2.7, -0.1, 0.65]].forEach(([x, y, z, r]) => ell(tree, r, r, r, 0x4fa046, [x, y, z], {ow:0.05}));
+[[0, 2.1, 0, 1.0], [-0.6, 1.75, 0.25, 0.7], [0.6, 1.8, -0.1, 0.75], [0.1, 1.7, 0.6, 0.62], [-0.1, 1.75, -0.6, 0.64], [0.1, 2.7, -0.1, 0.65]].forEach(([x, y, z, r]) => ell(tree, r, r, r, softMat(0x4fa046), [x, y, z], {ow:0.05}));
 [[0.4, 2.3, 0.75], [-0.5, 2.0, 0.85], [0.7, 1.7, 0.6]].forEach(p => ell(tree, 0.1, 0.1, 0.1, 0xe8566b, p, {outline:false}));
 { const ps = grp(scene, [1.75, 0, 0.75]);   // le parasol du coin câlin, derrière le plaid
   mesh(ps, new THREE.CylinderGeometry(0.035, 0.035, 1.55, 8), 0xfff8ec, {p:[0, 0.78, 0]});
@@ -1387,19 +1442,24 @@ function moveItem(it, x, z, rot = it.rot) { it.x = x; it.z = z; it.rot = rot; it
 function removeItem(it) { scene.remove(it.g); placed.splice(placed.indexOf(it), 1); updateFlowers(); }
 const sceneryFlowers = [];
 function updateFlowers() { sceneryFlowers.forEach(f => f.m.visible = placed.every(p => Math.hypot(f.x - p.x, f.z - p.z) > p.r + 0.08)); }
+// une touffe d'herbe : 5 brins fusionnés, chacun garde sa hauteur pour le dégradé
+const tuftGeo = () => G('tuft', () => { const pos = [], nor = [], ly = [], idx = [], c = new THREE.ConeGeometry(0.05, 0.24, 5), P = c.attributes.position, N = c.attributes.normal, I = c.index.array, M = new THREE.Matrix4(), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+  for (let k = 0; k < 5; k++) { M.compose(new THREE.Vector3((k - 2) * 0.045, 0.11, ((k * 37) % 3 - 1) * 0.04), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, (k - 2) * 0.28)), new THREE.Vector3(1, 0.8 + (k % 3) * 0.2, 1)); nm.getNormalMatrix(M); const b = pos.length / 3;
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor.push(v.x, v.y, v.z); ly.push(P.getY(i) / 0.12); } for (let i = 0; i < I.length; i++) idx.push(b + I[i]); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('ly', new THREE.Float32BufferAttribute(ly, 1)); g.setIndex(idx); return g; });
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const petal = [0xff8fb1, 0xffc94a, 0xffffff, 0xb59cff, 0xff6b5b];
-for (let i = 0; i < 70; i++) {
-  const a = rnd() * PI * 2, r = 2 + rnd() * 4.3, x = Math.sin(a) * r, z = Math.cos(a) * r;
+for (let i = 0; i < 110; i++) {
+  const a = rnd() * PI * 2, r = 1.6 + rnd() * 3.0, x = Math.sin(a) * r, z = Math.cos(a) * r;
   if (!free(x, z)) continue;
   const fg = grp(scene, [x, 0, z]); sceneryFlowers.push({m:fg, x, z});
-  if (i % 2) { mesh(fg, G('stem', () => new THREE.CylinderGeometry(0.015, 0.015, 0.22, 5)), 0x3d8a35, {outline:false, p:[0, 0.11, 0]}); ell(fg, 0.075, 0.075, 0.075, petal[i % 5], [0, 0.24, 0], {ow:0.25, shadow:false}); }
-  else for (let k = 0; k < 3; k++) mesh(fg, G('blade', () => new THREE.ConeGeometry(0.05, 0.22, 5)), 0x5ea844, {outline:false, p:[(k - 1) * 0.06, 0.1, (k % 2) * 0.05], r:[0, 0, (k - 1) * 0.3], shadow:false});
+  if (i % 4 === 1) { mesh(fg, G('stem', () => new THREE.CylinderGeometry(0.015, 0.015, 0.22, 5)), 0x3d8a35, {outline:false, p:[0, 0.11, 0]}); ell(fg, 0.075, 0.075, 0.075, petal[i % 5], [0, 0.24, 0], {ow:0.25, shadow:false}); }
+  else { const t = new THREE.Mesh(tuftGeo(), softMat(0x62b04a, 0.62, 1.15)); t.rotation.y = rnd() * 6; t.scale.setScalar(0.85 + rnd() * 0.4); fg.add(t); }   // touffe : 5 brins en un seul mesh, foncée au pied
 }
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const clouds = [];
-for (let i = 0; i < 5; i++) { const g = grp(scene, [-24 + i * 12, 8 + (i % 3) * 2, -22 - (i % 2) * 6]);
-  [[0, 0, 0, 1.2], [1.1, -0.2, 0, 0.9], [-1.1, -0.25, 0, 0.85], [0.4, 0.5, 0, 0.8]].forEach(([x, y, z, r]) => ell(g, r, r, r, 0xffffff, [x, y, z], {outline:false, shadow:false})); clouds.push(g); }
+for (let i = 0; i < 9; i++) { const g = grp(scene, [-34 + i * 8.5, 9 + (i % 3) * 2.2, -26 - (i % 3) * 7]), k = 1 + (i % 4) * 0.25;   // nuages ronds et doux
+  blob(g, 'cloud', [[0, 0, 0, 1.3], [1.2, -0.25, 0.1, 0.95], [-1.2, -0.3, 0, 0.9], [0.45, 0.55, 0, 0.85], [-0.5, 0.45, 0.1, 0.7], [2.0, -0.45, 0, 0.6]], softMat(0xffffff, 0.86, 1.02), {s:[k, k, k], outline:false}); clouds.push(g); }
 /* =========================================================
    LE MONDE AUTOUR : prairie, collines, arbres et maisons au loin (peu contrastés)
    ========================================================= */
@@ -1409,7 +1469,8 @@ for (let i = 0; i < 5; i++) { const g = grp(scene, [-24 + i * 12, 8 + (i % 3) * 
   // chemin qui part du portail
   const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 34), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.015, 21); far.add(path);
   // la montagne au loin
-  [[16, -46, 15, 20], [-20, -52, 12, 15]].forEach(([x, z, rr, h]) => { mesh(far, new THREE.ConeGeometry(rr, h, 7), 0xa9b8c8, {outline:false, shadow:false, p:[x, h / 2 - 1, z]}); mesh(far, new THREE.ConeGeometry(rr * 0.32, h * 0.32, 7), 0xffffff, {outline:false, shadow:false, p:[x, h - 1 - h * 0.16, z]}); });
+  { const mm = new THREE.MeshToonMaterial({color:0x9fb3cc, gradientMap:grad, fog:false}), sn = new THREE.MeshToonMaterial({color:0xffffff, gradientMap:grad, fog:false});   // les montagnes au loin, nettes
+    [[20, -58, 20, 30], [-16, -62, 17, 25], [2, -70, 24, 38], [-38, -52, 14, 18], [40, -50, 13, 17]].forEach(([x, z, rr, h]) => { mesh(far, new THREE.ConeGeometry(rr, h, 9), mm, {outline:false, shadow:false, p:[x, h / 2 - 1, z]}); mesh(far, new THREE.ConeGeometry(rr * 0.34, h * 0.34, 9), sn, {outline:false, shadow:false, p:[x, h - 1 - h * 0.17, z]}); }); }
   // collines douces
   [[-30, -40, 22, 6, 0xb2d896], [8, -48, 26, 8, 0xa9d28d], [40, -30, 20, 6, 0xb8dc9c], [-46, 6, 18, 5, 0xb6da9a], [46, 14, 18, 5, 0xb2d896], [-20, 40, 20, 5, 0xbadea0], [26, 44, 22, 6, 0xb6da9a]]
     .forEach(([x, z, r, hgt, c]) => ell(far, r, hgt, r, c, [x, -0.5, z], {outline:false, shadow:false}));
@@ -1442,6 +1503,7 @@ const GRASS = {mats:[], g:grp(scene)};
         dl = min(dl, sdSeg(vGw.xz, vec2(0.0, uR), vec2(0.0, 2.6)) - 0.65); dl = min(dl, sdSeg(vGw.xz, vec2(0.0, 0.3), vec2(0.0, -uR)) - 0.5); dl = min(dl, sdSeg(vGw.xz, vec2(-0.3, 0.2), vec2(-uR, 0.0)) - 0.5);
         if (dl < -0.04 + n * 0.1) discard;
         if (length(vGw.xz) > uR + 0.05) discard;   // l'herbe haute s'arrête à la clôture
+        diffuseColor.rgb *= mix(1.07, 0.88, smoothstep(0.5, uR, length(vGw.xz)));   // plus clair au centre, jonction douce vers le bord
         if (n < ${h.toFixed(2)} * 0.9 + 0.08) discard;`); };
     const sh = new THREE.Mesh(geo, m); sh.position.y = 0.006 + h * 0.04; sh.receiveShadow = true; sh.renderOrder = -1; GRASS.g.add(sh); GRASS.mats.push(m); }
 }
@@ -1480,6 +1542,19 @@ function applyDay(force) {
 applyDay(true); setInterval(() => applyDay(), 60000);
 /* ---------- petits bruits de la vie autour ---------- */
 const AMB = {next:6};
+// rayons de soleil quand il fait beau : de grands voiles lumineux en biais, qui respirent doucement
+const RAYS = {g:grp(scene), list:[]};
+{ const cv2 = document.createElement('canvas'); cv2.width = 8; cv2.height = 128; const c3 = cv2.getContext('2d'), gr = c3.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,240,190,0)'); gr.addColorStop(0.3, 'rgba(255,240,190,0.8)'); gr.addColorStop(0.75, 'rgba(255,244,205,0.35)'); gr.addColorStop(1, 'rgba(255,244,205,0)'); c3.fillStyle = gr; c3.fillRect(0, 0, 8, 128);
+  const tex = new THREE.CanvasTexture(cv2);
+  [[-7, -9, 2.6, 0.0], [-3, -11, 1.8, 1.3], [-10, -6, 2.0, 2.1], [1.5, -12, 1.5, 0.7], [-5, -14, 3.0, 1.7]].forEach(([x, z, w, ph]) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 26), new THREE.MeshBasicMaterial({map:tex, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending, fog:false, side:THREE.DoubleSide}));
+    m.position.set(x, 9, z); m.rotation.set(0, 0.6, -0.55); m.renderOrder = 2; RAYS.g.add(m); RAYS.list.push({m, ph}); }); }
+function stepRays(dt) {
+  const ph = phaseNow(), on = WX.k === 'beau' && (ph === 'matin' || ph === 'midi') && mode !== 'walk';
+  RAYS.list.forEach(r => { const goal = on ? 0.5 + 0.2 * Math.sin(clock * 0.5 + r.ph) : 0; r.m.material.opacity += (goal - r.m.material.opacity) * Math.min(1, dt * 2); });
+  RAYS.g.visible = RAYS.list.some(r => r.m.material.opacity > 0.01);
+}
 function stepAmbience() {
   if (clock < AMB.next || TITLE.on || mode === 'intro' || mode === 'walk' || mode === 'agility') return;
   AMB.next = clock + 7 + Math.random() * 10; const k = phaseNow(), r = Math.random();
@@ -4761,7 +4836,7 @@ function pickWeather() {
 }
 // ---- saisons : arbres et herbe ----
 const FOL = {tree:[], far:[], grass:GRASS.mats.map(m => m.color.clone())};
-tree.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() === 0x4fa046) { if (!FOL.treeMat) FOL.treeMat = o.material.clone(); o.material = FOL.treeMat; } });
+tree.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() === 0x4fa046) { if (!FOL.treeMat) { FOL.treeMat = o.material.clone(); FOL.treeMat.onBeforeCompile = o.material.onBeforeCompile; FOL.treeMat.customProgramCacheKey = () => 'foltree'; } o.material = FOL.treeMat; } });
 [0x8cc77a, 0x9ccf84].forEach(c => { const m = matCache[c]; if (m) FOL.far.push([m, m.color.clone()]); });
 const NAT_TINT = {printemps:{tree:0x5cb84e, far:0.0, grass:0, gTo:0xb3e08e}, ete:{tree:0x4f9e3a, far:0.15, farTo:0x8fbf5a, grass:0.1, gTo:0xb8c868},
   automne:{tree:0xe0892e, far:0.65, farTo:0xe0a050, grass:0.22, gTo:0xc9b45a}, hiver:{tree:0x8fae8a, far:0.45, farTo:0xb8c8bc, grass:0.25, gTo:0xb9c9b0}};
@@ -6175,7 +6250,7 @@ function frameBody(now) {
   _t = pfT('cam', _t); stepSeason(dt); if (dt > 0) { stepNourrice(dt); _t = pfT('nour', _t); stepWeather(dt); _t = pfT('weather', _t); stepCrits(dt); stepHunts(dt); _t = pfT('crits', _t); } stepBath(rdt); stepDirt(); stepSleepDim(); if (dt > 0) { stepDig(dt); stepAmbience(); stepEmos(dt); tickEmotions(); stepNpcs(Math.min(0.1, dt * TS)); stepPuddles(dt); stepBladder(dt); stepEnergy(dt); stepNap(); }
   document.getElementById('btnCall').classList.toggle('ready', napping() || !!D.waitCall);
   { const nap = napping() && ['cuddle', 'play'].includes(mode); document.body.classList.toggle('napping', nap); } document.getElementById('side').hidden = !['cuddle', 'play', 'bath'].includes(mode) || tutStep >= 0 || TITLE.on;
-  _t = pfT('world', _t); camera.position.copy(camPos); camera.lookAt(camLook); if (mode !== 'walk') stepOcclusion(rdt);
+  _t = pfT('world', _t); camera.position.copy(camPos); camera.lookAt(camLook); if (mode !== 'walk') stepOcclusion(rdt); stepRays(rdt);
   clouds.forEach((c, i) => { c.position.x += dt * (0.3 + i * 0.05); if (c.position.x > 30) c.position.x = -30; });
   scene.updateMatrixWorld(); updateFurMask(rig); npcs.forEach(n => updateFurMask(n.rig));
   _t = pfT('pre', _t); if (!GROWC.on) renderPost(mode === 'walk' ? WK.sc : scene); _t = pfT('render', _t);
