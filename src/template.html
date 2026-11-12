@@ -1175,10 +1175,43 @@ function buildFence() {
   if (ENC.lv < ENC_TOP) { const r2 = ENC_R[ENC.lv + 1]; for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + 0.1; if (Math.cos(a) > 0.85) continue; const p = grp(F, [Math.sin(a) * r2, 0, Math.cos(a) * r2], [0, a, 0]);
     mesh(p, G('stake', () => new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6)), 0xc98a5a, {p:[0, 0.25, 0], outline:false}); mesh(p, G('flag', () => new THREE.ConeGeometry(0.08, 0.16, 3).rotateZ(-PI / 2)), i % 2 ? 0xffc94a : 0xe8566b, {p:[0.07, 0.45, 0], outline:false}); } }
   if (ENC.gate) ENC.gate.position.z = r - 0.02;
+  if (typeof buildSurround === 'function' && ENC.ready) buildSurround();
 }
 buildFence();
+/* L'île autour de l'enclos (plan de Seb) : un anneau d'arbres, le salon de toilettage au fond, un cercle d'eau
+   avec un pont sur le chemin, des rochers, des nénuphars et un ponton, et les bois au bout du chemin.
+   Tout suit la taille de l'enclos : reconstruit quand il grandit. */
+function buildSurround() {
+  if (ENC.sur) scene.remove(ENC.sur); const S2 = grp(scene), r = encR(), R2 = rng(11); ENC.sur = S2;
+  // arbres légers : un seul contour (la grosse boule), pas d'ombre pour les bois lointains
+  const wood = 0xc98a5a, roundT = (x, z, k, c, far) => { const t = grp(S2, [x, 0, z]); mesh(t, G('trk', () => new THREE.CylinderGeometry(0.16, 0.24, 1.4, 8)), 0x8a5a36, {p:[0, 0.7, 0], s:[k, k, k], outline:false, shadow:!far});
+    [[0, 1.9, 0, 0.95], [-0.55, 1.6, 0.2, 0.65], [0.55, 1.65, -0.1, 0.7]].forEach(([x2, y, z2, rr], i) => ell(t, rr * k, rr * k, rr * k, c, [x2 * k, y * k, z2 * k], {ow:0.05, outline:i === 0 ? undefined : false, shadow:!far && i === 0})); return t; };
+  // l'eau : un anneau autour de l'île, et un pont là où passe le chemin
+  const w = new THREE.Mesh(new THREE.RingGeometry(r + 2.6, r + 4.6, 72), toon(0x7cc8ea, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
+  const br = grp(S2, [0, 0, r + 3.6]); mesh(br, new THREE.BoxGeometry(1.9, 0.1, 2.9), wood, {p:[0, 0.08, 0], receive:true, shadow:false});
+  [-1, 1].forEach(sx => { mesh(br, new THREE.BoxGeometry(0.08, 0.08, 2.9), 0x9a6a42, {p:[sx * 0.9, 0.5, 0], shadow:false, outline:false}); [-1.3, 0, 1.3].forEach(z => mesh(br, new THREE.BoxGeometry(0.1, 0.45, 0.1), 0x9a6a42, {p:[sx * 0.9, 0.3, z], shadow:false, outline:false})); });
+  for (let i = 0; i < 14; i++) { const a = R2() * PI * 2, rr = (R2() < 0.5 ? r + 2.55 : r + 4.65) + (R2() - 0.5) * 0.2; if (Math.abs(Math.sin(a) * rr) < 1.4 && Math.cos(a) > 0) continue;
+    ell(S2, 0.35 + R2() * 0.3, 0.22 + R2() * 0.15, 0.3 + R2() * 0.25, [0xb0aba2, 0x9f9a92][i % 2], [Math.sin(a) * rr, 0.05, Math.cos(a) * rr], {outline:false, shadow:false}); }
+  for (let i = 0; i < 10; i++) { const a = R2() * PI * 2, rr = r + 3.0 + R2() * 1.2; if (Math.abs(Math.sin(a) * rr) < 1.5 && Math.cos(a) > 0) continue;
+    mesh(S2, G('lily', () => new THREE.CylinderGeometry(0.28, 0.28, 0.02, 14, 1, false, 0.4, PI * 1.8)), 0x5fae4e, {outline:false, shadow:false, p:[Math.sin(a) * rr, 0.0, Math.cos(a) * rr], r:[0, R2() * 6, 0]}); }
+  const dk = grp(S2, [r + 2.9, 0, -1.6], [0, -PI / 2, 0]); mesh(dk, new THREE.BoxGeometry(1.3, 0.08, 1.6), wood, {p:[0, 0.12, 0.5], receive:true, shadow:false});
+  [-1, 1].forEach(sx => [0, 1].forEach(sz => mesh(dk, new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), 0x9a6a42, {p:[sx * 0.55, -0.05, sz * 1.1], shadow:false, outline:false})));
+  // l'anneau d'arbres entre la clôture et l'eau (ni devant le chemin, ni devant le salon)
+  for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + R2() * 0.12, rr = r + 1.2 + R2() * 0.8, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
+    if (Math.abs(x) < 2.2 && z > 0) continue; if (Math.abs(x) < 2.6 && z < 0) continue;
+    roundT(x, z, 0.8 + R2() * 0.45, i % 7 === 3 ? 0xf0a040 : [0x4fa046, 0x5fae4e, 0x47963f][i % 3]); }
+  // le salon de toilettage, au fond
+  const sal = grp(S2, [0, 0, -(r + 1.5)]); mesh(sal, new THREE.BoxGeometry(2.3, 1.5, 1.4), 0xfff1d6, {p:[0, 0.75, 0], receive:true});
+  mesh(sal, new THREE.BoxGeometry(2.5, 0.16, 1.6), wood, {p:[0, 1.58, 0]}); mesh(sal, new THREE.BoxGeometry(0.7, 1.0, 0.06), 0x5aa9e6, {p:[0, 0.5, 0.71]});
+  for (let i = 0; i < 7; i++) mesh(sal, new THREE.BoxGeometry(0.36, 0.08, 0.6), i % 2 ? 0xfff8ec : 0xe8566b, {p:[-1.08 + i * 0.36, 1.3, 0.95], r:[0.45, 0, 0], ow:0.05});
+  const sg = grp(sal, [0, 1.95, 0.2]); mesh(sg, new THREE.BoxGeometry(1.0, 0.5, 0.08), wood, {ow:0.08}); ell(sg, 0.12, 0.12, 0.04, 0xfff8ec, [0, -0.04, 0.05], {outline:false});
+  [[-0.12, 0.1], [0.12, 0.1], [-0.2, -0.05], [0.2, -0.05]].forEach(([x, y]) => ell(sg, 0.05, 0.05, 0.04, 0xfff8ec, [x, y + 0.04, 0.05], {outline:false}));
+  [[-0.85, 0xff8fb1], [0.85, 0x5aa9e6]].forEach(([x, c]) => mesh(sal, new THREE.CylinderGeometry(0.1, 0.12, 0.38, 10), c, {p:[x, 0.19, 0.95]}));
+  // les bois au bout du chemin, après le pont
+  for (let i = 0; i < 12; i++) { const sx = i % 2 ? 1 : -1, x = sx * (1.7 + R2() * 4.5), z = r + 5.6 + R2() * 5.5; roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); }
+}
 // portail de devant (la propriétaire entre par là dans l'intro)
-const gate = grp(scene, [0, 0, encR() - 0.02]); ENC.gate = gate;
+const gate = grp(scene, [0, 0, encR() - 0.02]); ENC.gate = gate; ENC.ready = true; buildSurround();
 [-1, 1].forEach(s => { mesh(gate, new THREE.BoxGeometry(0.16, 1.15, 0.16), 0xfff8ec, {p:[s * 0.86, 0.57, 0], ow:0.1}); ell(gate, 0.11, 0.11, 0.11, 0xe8566b, [s * 0.86, 1.2, 0]); });
 mesh(gate, new THREE.TorusGeometry(0.86, 0.05, 6, 24, PI), 0xfff8ec, {p:[0, 1.15, 0], ow:0.15});
 const gateDoor = grp(gate, [-0.78, 0, 0]);
@@ -1204,6 +1237,10 @@ const tree = grp(scene, [3.05, 0, -2.55]);
 mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8, 0]});
 [[0, 2.1, 0, 1.0], [-0.6, 1.75, 0.25, 0.7], [0.6, 1.8, -0.1, 0.75], [0.1, 2.7, -0.1, 0.65]].forEach(([x, y, z, r]) => ell(tree, r, r, r, 0x4fa046, [x, y, z], {ow:0.05}));
 [[0.4, 2.3, 0.75], [-0.5, 2.0, 0.85], [0.7, 1.7, 0.6]].forEach(p => ell(tree, 0.1, 0.1, 0.1, 0xe8566b, p, {outline:false}));
+{ const ps = grp(scene, [1.75, 0, 0.75]);   // le parasol du coin câlin, derrière le plaid
+  mesh(ps, new THREE.CylinderGeometry(0.035, 0.035, 1.55, 8), 0xfff8ec, {p:[0, 0.78, 0]});
+  for (let i = 0; i < 8; i++) mesh(ps, new THREE.ConeGeometry(0.72, 0.32, 8, 1, true, i / 8 * PI * 2, PI / 4), i % 2 ? 0xfff8ec : 0xe8566b, {p:[0, 1.62, 0], outline:false});
+  ell(ps, 0.06, 0.06, 0.06, 0xe8566b, [0, 1.8, 0], {outline:false}); }
 const bowl = grp(scene, [2.3, 0, 0.6]);
 mesh(bowl, new THREE.CylinderGeometry(0.34, 0.27, 0.16, 24), 0x5aa9e6, {p:[0, 0.08, 0]});
 mesh(bowl, new THREE.CylinderGeometry(0.28, 0.28, 0.02, 24), 0x2d1f17, {outline:false, p:[0, 0.165, 0]});
@@ -1221,12 +1258,12 @@ const duck = grp(scene, [0.95, 0, 2.3], [0, -0.6, 0]);
 ell(duck, 0.16, 0.12, 0.2, 0xffd23f, [0, 0.12, 0]); ell(duck, 0.1, 0.1, 0.1, 0xffd23f, [0, 0.28, 0.1]);
 ell(duck, 0.05, 0.025, 0.06, 0xff8a3d, [0, 0.27, 0.21]); [-1, 1].forEach(s => ell(duck, 0.018, 0.022, 0.012, 0x14100e, [s * 0.05, 0.31, 0.18], {outline:false}));
 duck.visible = false;
-const FIXED = [{x:-2.75, z:-2.05, r:1.6, push:1.25, id:'kennel', box:[0.7, 0.7], rot:0.55}, {x:3.05, z:-2.55, r:1.0, push:0.7, id:'tree'}, {x:0, z:1.7, r:1.6, push:0, id:'spot'}, {x:2.3, z:0.6, r:0.7, push:0.45, id:'bowl'}];
+const FIXED = [{x:-2.75, z:-2.05, r:1.6, push:1.25, id:'kennel', box:[0.7, 0.7], rot:0.55}, {x:3.05, z:-2.55, r:1.0, push:0.7, id:'tree'}, {x:0, z:1.7, r:1.6, push:0, id:'spot'}, {x:2.3, z:0.6, r:0.7, push:0.45, id:'bowl'}, {x:1.75, z:0.75, r:0.35, push:0.25, id:'parasol'}];
 const placed = [];
 const obstacles = () => FIXED.concat(placed);
 // encombrement réel d'un chien : une ellipse (long devant/derrière, étroit sur les flancs), à sa taille du moment
 function bodyR(rg, yaw, dx, dz) { const s = rg.root.scale.x, L = Math.hypot(dx, dz) || 1, c = Math.abs((Math.sin(yaw) * dx + Math.cos(yaw) * dz) / L); return s * (0.3 + 0.42 * c); }
-const HARD = {kennel:0.95, tree:0.35, bowl:0.12};   // le « dur » de chaque objet (ce que le modèle occupe vraiment au sol)
+const HARD = {kennel:0.95, tree:0.35, bowl:0.12, parasol:0.06};   // le « dur » de chaque objet (ce que le modèle occupe vraiment au sol)
 const hardOf = o => o.hard ?? HARD[o.id] ?? (ITEMS[o.kind] && ITEMS[o.kind].hard) ?? Math.max(0, o.push - 0.3);
 // distance d'un point à la SURFACE d'un objet (boîte tournée pour la niche, cercle pour le reste) + la normale pour l'en sortir
 const GAP = {d:0, nx:0, nz:0};
@@ -1335,13 +1372,15 @@ for (let i = 0; i < 5; i++) { const g = grp(scene, [-24 + i * 12, 8 + (i % 3) * 
   const far = grp(scene);
   const meadow = new THREE.Mesh(new THREE.CircleGeometry(80, 48), toon(0xbfe0a2, false)); meadow.rotation.x = -PI / 2; meadow.position.y = -0.04; meadow.receiveShadow = true; far.add(meadow);
   // chemin qui part du portail
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 30), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.03, 21.5); far.add(path);
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 34), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.015, 21); far.add(path);
+  // la montagne au loin
+  [[16, -46, 15, 20], [-20, -52, 12, 15]].forEach(([x, z, rr, h]) => { mesh(far, new THREE.ConeGeometry(rr, h, 7), 0xa9b8c8, {outline:false, shadow:false, p:[x, h / 2 - 1, z]}); mesh(far, new THREE.ConeGeometry(rr * 0.32, h * 0.32, 7), 0xffffff, {outline:false, shadow:false, p:[x, h - 1 - h * 0.16, z]}); });
   // collines douces
   [[-30, -40, 22, 6, 0xb2d896], [8, -48, 26, 8, 0xa9d28d], [40, -30, 20, 6, 0xb8dc9c], [-46, 6, 18, 5, 0xb6da9a], [46, 14, 18, 5, 0xb2d896], [-20, 40, 20, 5, 0xbadea0], [26, 44, 22, 6, 0xb6da9a]]
     .forEach(([x, z, r, hgt, c]) => ell(far, r, hgt, r, c, [x, -0.5, z], {outline:false, shadow:false}));
   // arbres et buissons au loin (couleurs délavées par la brume)
   const R = rng(7);
-  for (let i = 0; i < 26; i++) { const a = R() * PI * 2, d = 11 + R() * 16, x = Math.sin(a) * d, z = Math.cos(a) * d; if (Math.abs(x) < 2.5 && z > 6) continue;
+  for (let i = 0; i < 26; i++) { const a = R() * PI * 2, d = 15 + R() * 14, x = Math.sin(a) * d, z = Math.cos(a) * d; if (Math.abs(x) < 2.5 && z > 6) continue;
     const t = grp(far, [x, 0, z]), s = 0.8 + R() * 1.1;
     if (R() < 0.6) { mesh(t, new THREE.CylinderGeometry(0.12 * s, 0.16 * s, 1.1 * s, 6), 0xa58466, {outline:false, p:[0, 0.55 * s, 0]}); ell(t, 0.75 * s, 0.85 * s, 0.75 * s, R() < 0.5 ? 0x8cc77a : 0x9ccf84, [0, 1.5 * s, 0], {outline:false}); }
     else { [[0, 0.45], [0.5, 0.35], [-0.45, 0.3]].forEach(([ox, r]) => ell(t, r * s * 1.3, r * s, r * s * 1.2, 0x9ccf84, [ox * s, r * s * 0.7, 0], {outline:false, shadow:false})); } }
@@ -1496,7 +1535,7 @@ try {
     FULL.on = !!s.full || (s.pack || []).length > 1; nourStars = s.stars || 0; cups = Object.assign({or:0, argent:0, bronze:0}, s.cups || {});   // ceux qui gardent déjà d'autres chiens gardent tout
     custom = s.custom || {}; FIRST.key = s.first || null; Object.keys(custom).forEach(k => BREEDS[k] && applyCustom(k));
     Object.keys(names).forEach(k => BREEDS[k] && (BREEDS[k].dog = names[k])); Object.keys(collarCol).forEach(k => BREEDS[k] && (BREEDS[k].collar = collarCol[k]));
-    if (Array.isArray(s.items)) s.items.forEach(([k, x, z, r]) => ITEMS[k] && placeItem(k, x, z, r));
+    if (Array.isArray(s.items)) { s.items.forEach(([k, x, z, r]) => ITEMS[k] && placeItem(k, x, z, r)); snapNiches(); }
     else placeItem('arche', 1.0, -3.2, 0.4);
     D.bladder = s.bl || 0; D.energy = typeof s.en === 'number' ? Math.min(1, s.en + Math.max(0, (Date.now() - s.t) / 1000) / 2400) : 1; OFFLINE_POOPS = Math.min(2, Math.floor(Math.max(0, (Date.now() - s.t) / 1000) / 1500));
     for (let i = 0; i < OFFLINE_POOPS; i++) { const p = randFree(); addPoop(p.x, p.z); }
@@ -2132,9 +2171,16 @@ function growEnclosure() {
   npcs.forEach(n => npcBark(n, 'Wouf !')); renderShelf(); save();
   decorTitle.textContent = 'Plus de place pour jouer !'; setTimeout(() => showTools(false), 1600);
 }
+// le coin niches : les petites niches ont des places fixes autour de la grande (plus de niche mal posée)
+// (fonctions, pas constantes : la sauvegarde range les niches avant que le reste du script soit lu)
+function nicheSlots() { return [-92, -160, -64, -186].map(d => { const a = d * PI / 180, x = Math.sin(a) * 3.55, z = Math.cos(a) * 3.55; return {x, z, rot:Math.atan2(-x, -z)}; }); }
+function freeNicheSlot() { return nicheSlots().find(sl => !placed.some(p => p.kind === 'panier' && Math.hypot(p.x - sl.x, p.z - sl.z) < 0.4)); }
+function snapNiches() { const ns = nicheSlots(); placed.filter(p => p.kind === 'panier').forEach((p, i) => { const sl = ns[i]; if (sl) moveItem(p, sl.x, sl.z, sl.rot); }); }
 function buy(kind) {
   if (sel && !commit(false)) return;
   const d = ITEMS[kind]; if (coins < d.price) return;
+  if (kind === 'panier') { const sl = freeNicheSlot(); if (!sl) { S.deny(); decorTitle.textContent = 'Le coin niches est plein !'; decorTitle.classList.add('no'); setTimeout(() => showTools(false), 1200); return; }
+    const it = placeItem('panier', sl.x, sl.z, sl.rot); select(it, true); commit(false); decorTitle.textContent = 'Elle va dans le coin niches !'; return; }
   if (placed.filter(p => !['fleurs'].includes(p.kind)).length >= ENC_MAX[ENC.lv] && kind !== 'fleurs') { S.deny(); decorTitle.textContent = ENC.lv < ENC_TOP ? "L'enclos est plein : agrandis-le !" : "L'enclos est plein !"; decorTitle.classList.add('no'); setTimeout(() => showTools(false), 1600); return; }
   let spot = null;
   for (let i = 0; i < 80 && !spot; i++) { const a = i * 2.39996, r = 0.6 + i * 0.07, x = Math.sin(a) * r, z = -0.6 + Math.cos(a) * r; if (Math.hypot(x, z) + d.r < encR() - 0.5 && free(x, z, 0.1)) spot = [x, z]; }
@@ -2202,8 +2248,9 @@ stage.addEventListener('pointerdown', e => {
   if (mode !== 'decor') return;
   cast(e.clientX, e.clientY);
   const it = hitItem();
-  if (it) { if (!sel || sel.it !== it) select(it, false); dragging = true; if (ray.ray.intersectPlane(plane, gp)) dragOff.set(it.x - gp.x, 0, it.z - gp.z); }
-  else if (sel) { dragging = true; dragOff.set(0, 0, 0); if (ray.ray.intersectPlane(plane, gp)) moveItem(sel.it, gp.x, gp.z); }
+  if (it && it.kind === 'panier') { if (!sel || sel.it !== it) select(it, false); dragging = false; decorTitle.textContent = 'Les niches restent dans leur coin'; }
+  else if (it) { if (!sel || sel.it !== it) select(it, false); dragging = true; if (ray.ray.intersectPlane(plane, gp)) dragOff.set(it.x - gp.x, 0, it.z - gp.z); }
+  else if (sel && sel.it.kind !== 'panier') { dragging = true; dragOff.set(0, 0, 0); if (ray.ray.intersectPlane(plane, gp)) moveItem(sel.it, gp.x, gp.z); }
 });
 stage.addEventListener('pointermove', e => {
   const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y; ptr.x = e.clientX; ptr.y = e.clientY;
@@ -2254,7 +2301,7 @@ const endPtr = e => {
   if (!ptr.down) return; ptr.down = false; hand.classList.remove('on'); S.rustleOff(); BATH.spraying = false;
   if (DIG.hold) { DIG.hold = false; return; }
   if (ZEN.on) return;
-  if (mode === 'walk') { WK.hold = false; return; }
+  if (mode === 'walk') return;   // la balade continue sans doigt posé
   if (mode === 'play' && AIM.armed) {
     AIM.armed = false;
     if (AIM.on) { AIM.on = false; showAim(false); if (D.anim?.name === 'ready') D.anim = null;
@@ -2347,7 +2394,7 @@ const look = new V3(), hw = new V3(), drive = {fx:0, fz:0, droop:0, splay:0, kic
 /* ---------- VRAI CHEMIN : A* sur une grille de 20 cm de l'enclos (clôture + niche, arbre, piscine…) ---------- */
 const NAV = {cell:0.2};
 function navBlocked(x, z, skip) {
-  if (Math.hypot(x, z) > encR() - 0.42) return true;
+  if (Math.hypot(x, z) > encR() - 0.42 && !(D.outing && Math.abs(x) < 0.8 && z > 0)) return true;   // pendant la sortie, le passage du portail est ouvert
   for (const o of obstacles()) { if (!o.push || o.id === 'spot' || skip.includes(o.id) || (sel && o === sel.it)) continue; if (obsGap(o, x, z).d < 0.32 * rig.root.scale.x + 0.12) return true; }
   return false;
 }
@@ -2431,7 +2478,7 @@ function stepDog(dt) {
   if (D.spin > 0) { const s = Math.min(D.spin, dt * 14); D.spin -= s; D.yaw += s; D.yawVel = 14; }
   D.speed += (want - D.speed) * damp(D.speed < want ? 5 : 7, dt);
   D.pos.x += Math.sin(D.yaw) * D.speed * dt; D.pos.z += Math.cos(D.yaw) * D.speed * dt;
-  const r = Math.hypot(D.pos.x, D.pos.z), rm = encR() - 0.38; if (r > rm && mode !== 'walk') D.pos.multiplyScalar(rm / r);
+  const r = Math.hypot(D.pos.x, D.pos.z), rm = encR() - 0.38; if (r > rm && mode !== 'walk' && !D.outing) D.pos.multiplyScalar(rm / r);   // outing : il sort par le portail pour la balade
   // coincé ? (il veut avancer mais ne bouge plus) → petit détour par le côté le plus dégagé, puis il reprend sa route
   if (D.target && mode !== 'walk' && mode !== 'agility' && mode !== 'intro' && want > 0.3) {
     if (!D.stk) D.stk = {p:D.pos.clone(), t:0}; D.stk.t += dt;
@@ -3135,7 +3182,7 @@ function openActivities() {
     if (fullLocked(a)) { closePanel(); askFull(a); return; }
     S.toc(2); closePanel();
     if (a === 'concours' && !contestReady()) { S.deny(); tip(b, 'Apprends 3 tours'); return; }
-    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'concours') startContest(); else if (a === 'famille') startFamily(); else if (a === 'balade') startWalk(); else if (a === 'circuit') startAgility();
+    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'concours') startContest(); else if (a === 'famille') startFamily(); else if (a === 'balade') walkFromGate(); else if (a === 'circuit') startAgility();
   });
 }
 function closePanel() { panel.hidden = true; panel.innerHTML = ''; if (!['train', 'walk', 'agility', 'intro', 'decor'].includes(mode)) document.getElementById('actions').hidden = false; }
@@ -3423,6 +3470,21 @@ function resetWalkEvents() {
   // biscuits
   for (let z = -9; z > -WALK_LEN + 6; z -= 17) { const x = (r() - 0.5) * 1.4; for (let k = 0; k < 2; k++) { const g = grp(sc, [x, 0.35, z - k * 0.7]); mesh(g, G('biscuit', () => new THREE.CylinderGeometry(0.12, 0.12, 0.05, 6).rotateX(PI / 2)), 0xffc94a, {ow:0.12}); add('coin', z - k * 0.7, x, {g}); } }
 }
+// la balade commence au portail : il sort, passe le pont et file vers les bois, puis on y est
+function walkFromGate() {
+  if (!['cuddle', 'play'].includes(mode) || napping()) return startWalk();
+  stopUsing(); D.carrying && dropBall(); D.anim = null; D.posture = 'stand';
+  const r = encR(), t0 = performance.now(); let gone = false;
+  say('Balade !', 'big'); S.toc(4);
+  // la caméra regarde le portail depuis l'enclos : on voit le chien sortir, passer le pont et filer vers les bois
+  CAMO.pos.set(1.5, 1.7, r - 3.6); CAMO.look.set(0, 0.5, r + 4); CAMO.until = performance.now() + 9000;
+  const open = () => { const k = Math.min(1, (performance.now() - t0) / 700); gateDoor.rotation.y = -1.8 * k; if (k < 1) requestAnimationFrame(open); }; open();
+  const f = document.createElement('div'); f.style.cssText = 'position:fixed;inset:0;background:#fff8ec;opacity:0;transition:opacity .5s;z-index:60;pointer-events:none'; document.body.appendChild(f);
+  const leave = () => { if (gone) return; gone = true; f.style.opacity = '1';
+    setTimeout(() => { gateDoor.rotation.y = 0; CAMO.until = 0; D.outing = false; startWalk(); f.style.opacity = '0'; setTimeout(() => f.remove(), 600); }, 550); };
+  D.target = null; goTo(new V3(0, 0, r - 0.9), true, 0.35, () => { D.outing = true; goTo(new V3(0, 0, r + 5), true, 0.4, null); setTimeout(leave, 1900); });
+  setTimeout(leave, 7000);   // filet de sécurité si le chien est retenu
+}
 function startWalk() {
   const keys = Object.keys(BIOMES).filter(k => k !== WK.last); const biome = keys[Math.floor(Math.random() * keys.length)]; WK.last = biome;
   buildWalk(biome); resetWalkEvents();
@@ -3430,7 +3492,8 @@ function startWalk() {
   rig.root.parent && rig.root.parent.remove(rig.root);
   setMode('walk', true); WK.sc.add(rig.root);
   D.pos.set(0, 0, 0); D.yaw = PI; D.faceYaw = PI; D.target = null; D.anim = null; D.posture = 'stand'; D.ground = null;
-  Object.assign(WK, {hold:false, laneX:0, idle:0, run:false, stats:{sniff:0, friend:0, coin:0, poop:0, mud:0, hop:0, ani:0}, pooped:false, poopG:null, done:false, startT:clock, blockT:0});
+  // la balade avance toute seule, comme un runner (hold reste vrai)
+  Object.assign(WK, {hold:true, laneX:0, idle:0, run:false, stats:{sniff:0, friend:0, coin:0, poop:0, mud:0, hop:0, ani:0}, pooped:false, poopG:null, done:false, startT:clock, blockT:0});
   panel.hidden = false;
   panel.innerHTML = `<div class="prow"><div class="stat"><span id="wDist">0 m</span><span id="wCoin">${ICON.coin}0</span></div><button class="cta small" id="pClose">Rentrer</button></div>
     <div class="wkbtns"><button class="wkrun" id="wkRun">${ICON.walk}<b>Courir</b></button><button class="wkact" id="wkAct" hidden></button><button class="big" id="wkHop">HOP !</button></div>`;
@@ -3439,7 +3502,7 @@ function startWalk() {
   panel.querySelector('#wkHop').onpointerdown = e => { e.stopPropagation(); walkHop(); };
   panel.querySelector('#wkAct').onpointerdown = e => { e.stopPropagation(); walkAct(); };
   WK.nextAway = clock + 14 + Math.random() * 10; WK.away = null; WK.digE = null;
-  coach(`Balade dans ${BIOMES[biome].name} ! Appuie pour avancer.`, 6);
+  coach(`Balade dans ${BIOMES[biome].name} ! Il avance tout seul : touche à gauche ou à droite pour le guider.`, 6);
   say('Wouf wouf !');
 }
 function actBtn(txt) { const b = document.getElementById('wkAct'); if (!b) return; b.hidden = !txt; if (txt) b.textContent = txt; }
@@ -6061,6 +6124,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
