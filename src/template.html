@@ -818,13 +818,13 @@ function toon(c, rim = false) {
   return matCache[k];
 }
 /* Contour brun (coque inversée) : extrudée le long de normales lissées (pas de cassure aux arêtes), d'une épaisseur relative à l'objet
-   mais plafonnée en pixels selon la distance à la caméra (de près, le trait ne grossit plus). */
+   ramenée à une bande en pixels : au moins 1,4 px (pas de crénelage), au plus 3 px de près et 1,5 px au loin. */
 const HULL = {cap:{value:0.01}, mats:{}, on:true};
 function lineMatFor(ow = 0.06) {
   const key = ow.toFixed(3); if (HULL.mats[key]) return HULL.mats[key];
   const m = new THREE.MeshBasicMaterial({color:0x3b2a1e, side:THREE.BackSide}); m.userData.hull = true; m.visible = HULL.on;
   m.onBeforeCompile = sh => { sh.uniforms.uOw = {value:ow}; sh.uniforms.uCap = HULL.cap;
-    sh.vertexShader = 'attribute vec3 sn;\nuniform float uOw;\nuniform float uCap;\n' + sh.vertexShader.replace('#include <project_vertex>', 'vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );\n vec3 offV = mat3( modelViewMatrix ) * ( sn * uOw );\n float hl = length( offV ), cap = uCap * max( -mvPosition.z, 0.05 );\n if ( hl > cap ) offV *= cap / hl;\n mvPosition.xyz += offV;\n gl_Position = projectionMatrix * mvPosition;'); };
+    sh.vertexShader = 'attribute vec3 sn;\nuniform float uOw;\nuniform float uCap;\n' + sh.vertexShader.replace('#include <project_vertex>', 'vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );\n vec3 offV = mat3( modelViewMatrix ) * ( sn * uOw );\n float dep = max( -mvPosition.z, 0.05 ), wpp = uCap * dep, hl = max( length( offV ), 1e-6 );\n float px = clamp( hl / wpp, 1.4, mix( 3.0, 1.5, smoothstep( 8.0, 30.0, dep ) ) );\n offV *= px * wpp / hl;\n mvPosition.xyz += offV;\n gl_Position = projectionMatrix * mvPosition;'); };
   m.customProgramCacheKey = () => 'hull'; return HULL.mats[key] = m;
 }
 const lineMat = lineMatFor(0.06);
@@ -3022,7 +3022,7 @@ function updateHint() {
 }
 function resize() {
   W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false);
-  camera.aspect = W / H; camera.fov = W / H < 0.9 ? 56 : 42; camera.updateProjectionMatrix(); HULL.cap.value = 2 * Math.tan(camera.fov * PI / 360) / Math.max(1, H) * 3.2;   // trait de 3 px au plus
+  camera.aspect = W / H; camera.fov = W / H < 0.9 ? 56 : 42; camera.updateProjectionMatrix(); HULL.cap.value = 2 * Math.tan(camera.fov * PI / 360) / Math.max(1, H);   // taille d'un pixel à 1 m : le contour se règle en pixels (entre 1,4 et 3 px, plus fin au loin) ; trait de 3 px au plus
 }
 window.addEventListener('resize', resize); resize();
 
