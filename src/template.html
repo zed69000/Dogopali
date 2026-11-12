@@ -417,6 +417,11 @@ body[data-mode=bath] #toast{top:calc(238px + env(safe-area-inset-top,0px))}
 @media (max-width:420px){.act span{padding:0 7px}.act{font-size:13px}
 .facts{grid-template-columns:1fr 1fr 1fr}.fact b{font-size:14px}.needs{grid-template-columns:1fr}.act .disc{width:60px;height:60px}.act{font-size:14px}.gauge{width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){#hint.swipe,#hint.tap,.gauge.low{animation:none}}
+/* petits écrans et paysage : rien ne sort de l'écran */
+#modal > div{max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}   /* une fenêtre trop haute défile (paysage) au lieu de cacher son bouton */
+#dogChip:has(#packBadge:not([hidden])){padding-right:24px}   /* le nombre de chiens ne mange plus la fin du nom */
+@media (max-width:380px){.actions{gap:4px}.act .disc{width:54px;height:54px;border-width:3px;box-shadow:0 5px 0 var(--ink)}.act svg{width:32px;height:32px}.act{font-size:12px}.act span{padding:0 5px;border-width:2px}}
+@media (max-height:520px) and (orientation:landscape){#modal > div .cta{position:sticky;bottom:4px;z-index:2}#modal .gift .box{width:96px;height:96px}#modal .gift{gap:8px;padding:12px 14px 14px}.side{top:calc(76px + env(safe-area-inset-top,0px));gap:7px}.side .iconbtn{width:48px;height:48px;border-radius:15px}.side .iconbtn svg{width:28px;height:28px}}
 
 .side{position:absolute;right:max(14px,env(safe-area-inset-right,0px));top:calc(150px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px}
 .side .iconbtn{position:relative}
@@ -769,7 +774,7 @@ function applyQuality() {
   HULL.on = q >= 1; Object.values(HULL.mats).forEach(m => m.visible = HULL.on);   // contours coupés en qualité basse
 }
 function stepQuality(rdt) {
-  if (document.hidden || rdt <= 0 || rdt >= 0.25) return; QUAL.ema += (Math.min(rdt, 0.08) - QUAL.ema) * 0.05;   // les images lentes comptent (sinon un téléphone à moins de 20 i/s ne baissait jamais) QUAL.t += rdt;
+  if (document.hidden || rdt <= 0 || rdt >= 0.25) return; QUAL.ema += (Math.min(rdt, 0.08) - QUAL.ema) * 0.05; QUAL.t += rdt;   // les images lentes comptent (sinon un téléphone à moins de 20 i/s ne baissait jamais)
   if (QUAL.t > 2.5) { QUAL.t = 0; if (QUAL.ema > 0.026 && QUAL.lv > 0) { QUAL.lv--; QUAL.down++; applyQuality(); }
     else if (QUAL.ema < 0.0135 && QUAL.lv < 2 && QUAL.down === 0 && !MOBILE) { QUAL.lv++; applyQuality(); } }
 }
@@ -1556,10 +1561,10 @@ const GRASS = {mats:[], g:grp(scene)};
         float dl = length(vGw.xz - vec2(${PLAZA[0].toFixed(2)}, ${PLAZA[1].toFixed(2)})) - ${PLAZA[2].toFixed(2)};   // pas d'herbe sur les chemins de terre (bord irrégulier)
         ${LANES.map(l => `dl = min(dl, sdSeg(vGw.xz, vec2(${l[0].toFixed(2)}, ${l[1].toFixed(2)}), vec2(${l[2].toFixed(2)}, ${l[3].toFixed(2)})) - ${(l[4] / 2).toFixed(2)});`).join(' ')}
         dl = min(dl, sdSeg(vGw.xz, vec2(0.0, uR), vec2(0.0, 2.6)) - 0.65); dl = min(dl, sdSeg(vGw.xz, vec2(0.0, 0.3), vec2(0.0, -uR)) - 0.5); dl = min(dl, sdSeg(vGw.xz, vec2(-0.3, 0.2), vec2(-uR, 0.0)) - 0.5);
-        if (dl < -0.04 + n * 0.1) discard;
+        if (dl < -0.04 + n * 0.1) discard;   // (le dégradé clair au centre est posé après la déclaration de diffuseColor, plus bas)
         if (length(vGw.xz) > uR + 0.05) discard;   // l'herbe haute s'arrête à la clôture
-        diffuseColor.rgb *= mix(1.07, 0.88, smoothstep(0.5, uR, length(vGw.xz)));   // plus clair au centre, jonction douce vers le bord
-        if (n < ${h.toFixed(2)} * 0.9 + 0.08) discard;`); };
+        if (n < ${h.toFixed(2)} * 0.9 + 0.08) discard;`)
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse * mix(1.07, 0.88, smoothstep(0.5, uR, length(vGw.xz))), opacity );'); };
     const sh = new THREE.Mesh(geo, m); sh.position.y = 0.006 + h * 0.04; sh.receiveShadow = true; sh.renderOrder = -1; GRASS.g.add(sh); GRASS.mats.push(m); }
 }
 /* ---------- matin, midi, soir, nuit : la lumière suit l'heure ---------- */
