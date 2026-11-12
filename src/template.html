@@ -1210,17 +1210,30 @@ function walkable(x, z, m = 0) { const r = encR(); if (Math.hypot(x, z) < r - m)
   return inRect(yardN(), x, z, m) || inRect(yardS(), x, z, m); }
 /* DÉCOR DOUX ET ROND (DA) : un matériau toon en dégradé (clair en haut, plus foncé en bas de chaque masse),
    des arbres en plusieurs masses avec un tronc évasé, des buissons en bulles, des poteaux à tête ronde. */
-const softCache = {};
+const softCache = {}, softGrad = new THREE.DataTexture(new Uint8Array([150,150,150,255, 178,178,178,255, 206,206,206,255, 230,230,230,255, 246,246,246,255]), 5, 1, THREE.RGBAFormat);
+softGrad.minFilter = softGrad.magFilter = THREE.LinearFilter; softGrad.needsUpdate = true;   // lumière douce du feuillage : l'ombre reste claire
 function softMat(c, lo = 0.72, hi = 1.12) {
   const key = c + '_' + lo + '_' + hi; if (softCache[key]) return softCache[key];
-  const m = new THREE.MeshToonMaterial({color:c, gradientMap:grad});
+  const m = new THREE.MeshToonMaterial({color:c, gradientMap:softGrad});
   m.onBeforeCompile = sh => { sh.vertexShader = 'attribute float ly;\nvarying float vLy;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLy = ly;');
-    sh.fragmentShader = 'varying float vLy;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', `vec4 diffuseColor = vec4( diffuse * mix(${lo.toFixed(2)}, ${hi.toFixed(2)}, smoothstep(-1.0, 1.0, vLy)), opacity );`); };
+    sh.fragmentShader = 'varying float vLy;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', 'float fres = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.84), pow(fres, 2.2) * 0.38);\n#include <tonemapping_fragment>').replace('vec4 diffuseColor = vec4( diffuse, opacity );', `vec4 diffuseColor = vec4( diffuse * mix(${lo.toFixed(2)}, ${hi.toFixed(2)}, smoothstep(-1.0, 1.0, vLy)), opacity );`); };
   m.customProgramCacheKey = () => 'soft' + key; return softCache[key] = m;
 }
 // tronc évasé au pied (empattement cartoon), en un seul tour
 const trunkGeo = () => G('trunk2', () => { const pts = [[0.001, 0], [0.34, 0], [0.3, 0.05], [0.22, 0.16], [0.17, 0.35], [0.15, 0.9], [0.14, 1.45], [0.001, 1.5]].map(([x, y]) => new THREE.Vector2(x, y)); return new THREE.LatheGeometry(pts, 10); });
+// AO douce cuite : une tache d'ombre floue au sol sous chaque élément statique ; groupées en un seul mesh instancié par groupe
+const AO = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const mat = new THREE.MeshBasicMaterial({color:0x24331a, map:new THREE.CanvasTexture(c), transparent:true, opacity:0.34, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2});
+  return {mat, geo:new THREE.PlaneGeometry(2, 2).rotateX(-PI / 2)}; })();
+function aoAdd(parent, x, z, rx, rz = rx) { (parent.userData.ao ||= []).push([x, z, rx, rz]); }
+function aoFlush(parent) {
+  const L = parent.userData.ao || []; if (!L.length) return; const im = new THREE.InstancedMesh(AO.geo, AO.mat, L.length), M = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  L.forEach(([x, z, rx, rz], i) => { M.compose(v.set(x, 0.02, z), q, sc.set(rx, 1, rz)); im.setMatrixAt(i, M); }); im.castShadow = false; im.receiveShadow = false; im.renderOrder = 1; parent.add(im); parent.userData.ao = [];
+}
+function aoBlob(parent, rx, rz = rx, x = 0, z = 0) { const m = new THREE.Mesh(AO.geo, AO.mat); m.position.set(x, 0.02, z); m.scale.set(rx, 1, rz); m.renderOrder = 1; parent.add(m); return m; }
 function cartoonTree(parent, x, z, k, c, far) {
+  aoAdd(parent, x, z, 1.35 * k);
   const t = grp(parent, [x, 0, z]); t.userData.occR = 1.15 * k;
   mesh(t, trunkGeo(), 0x8a5a36, {s:[k, k, k], outline:false, shadow:!far});
   const masses = far ? [[0, 2.0, 0, 0.92], [-0.6, 1.7, 0.1, 0.62], [0.62, 1.72, 0, 0.64], [0, 2.55, 0, 0.55]]
@@ -1229,6 +1242,7 @@ function cartoonTree(parent, x, z, k, c, far) {
   return t;
 }
 function bush(parent, x, z, k, c = 0x5fae4e) {
+  aoAdd(parent, x, z, 0.8 * k);
   const b = grp(parent, [x, 0, z]);
   blob(b, 'bush', [[0, 0.32, 0, 0.36, 0.33], [-0.32, 0.22, 0.05, 0.26, 0.24], [0.33, 0.24, -0.02, 0.28, 0.26], [0.05, 0.2, 0.28, 0.22, 0.2]], softMat(c, 0.7, 1.15), {s:[k, k, k], ow:0.05});
   return b;
@@ -1292,6 +1306,7 @@ function buildSurround() {
     pts.forEach(([x, z], i) => { if (i % 2 || i < 2) return; const sx = i % 4 ? 1 : -1; ell(S2, 0.16, 0.1, 0.13, softMat(0xb9b4ac, 0.78, 1.12), [x + sx * 0.95, 0.03, z], {ow:0.1, shadow:false}); }); }
   // les bois au bout du chemin, après le pont
   for (let i = 0; i < 16; i++) { const sx = i % 2 ? 1 : -1, z = r + 7.2 + R2() * 11, x = Math.sin((z - r - 6.6) / 13 * 4.2) * 1.3 * (z - r - 6.6) / 13 + sx * (2.0 + R2() * 4); roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); if (i % 2) bush(S2, x - sx * 0.8, z - 0.6, 0.9, 0x47963f); }
+  aoFlush(S2);
 }
 // portail de devant (la propriétaire entre par là dans l'intro)
 const gate = grp(scene, [0, 0, encR() - 0.02]); ENC.gate = gate; ENC.ready = true; buildSurround();
@@ -1302,7 +1317,7 @@ const gateDoor = grp(gate, [-0.78, 0, 0]);
 for (let k = 0; k < 6; k++) mesh(gateDoor, new THREE.BoxGeometry(0.13, 0.78, 0.06), 0xd9a066, {p:[0.14 + k * 0.255, 0.42, 0], ow:0.1});
 [0.25, 0.6].forEach(y => mesh(gateDoor, new THREE.BoxGeometry(1.5, 0.07, 0.05), 0xb07a4a, {p:[0.78, y, 0.02], outline:false}));
 ell(gateDoor, 0.13, 0.11, 0.03, 0xe8566b, [0.78, 0.86, 0.04], {ow:0.15});
-const kennel = grp(scene, [-2.75, 0, -2.05], [0, 0.55, 0]);
+const kennel = grp(scene, [-2.75, 0, -2.05], [0, 0.55, 0]); aoBlob(kennel, 0.95, 1.05);
 const kennelWalls = [];
 { const kw = (w, h, dd, p) => { const m = mesh(kennel, new THREE.BoxGeometry(w, h, dd), 0xe8566b, {p, receive:true, ow:0.04}); kennelWalls.push(m); return m; };
   kw(1.5, 1.05, 0.1, [0, 0.52, -0.7]); kw(0.1, 1.05, 1.5, [-0.7, 0.52, 0]); kw(0.1, 1.05, 1.5, [0.7, 0.52, 0]);
@@ -1317,7 +1332,7 @@ const kennelBody = kennelWalls[0];
 { const bone = grp(kennel, [0, 0.98, 0.78]);   // l'os au-dessus de la porte
   mesh(bone, new THREE.BoxGeometry(0.3, 0.08, 0.05), 0xfff8ec, {ow:0.12});
   [-1, 1].forEach(sx => [-1, 1].forEach(sy => ell(bone, 0.06, 0.06, 0.035, 0xfff8ec, [sx * 0.16, sy * 0.04, 0], {ow:0.12}))); }
-const tree = grp(scene, [3.05, 0, -2.55]);
+const tree = grp(scene, [3.05, 0, -2.55]); aoBlob(tree, 1.5);
 mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8, 0]});
 [[0, 2.1, 0, 1.0], [-0.6, 1.75, 0.25, 0.7], [0.6, 1.8, -0.1, 0.75], [0.1, 1.7, 0.6, 0.62], [-0.1, 1.75, -0.6, 0.64], [0.1, 2.7, -0.1, 0.65]].forEach(([x, y, z, r]) => ell(tree, r, r, r, softMat(0x4fa046), [x, y, z], {ow:0.05}));
 [[0.4, 2.3, 0.75], [-0.5, 2.0, 0.85], [0.7, 1.7, 0.6]].forEach(p => ell(tree, 0.1, 0.1, 0.1, 0xe8566b, p, {outline:false}));
@@ -1328,7 +1343,7 @@ mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8
 /* LE PARC PAR ZONES (plan de Seb) : la niche et le coin niches à gauche, le salon de toilettage au fond (on y fait
    le bain), le coin câlin devant (plaid et parasol), les agrès dans l'aire de jeu, des chemins de terre entre tout. */
 const GSPOT = new V3(0, 0, -1.55);   // devant le salon : le bain, le rinçage et la brosse se font ici
-const SALON = grp(scene, [0, 0, -3.45]);
+const SALON = grp(scene, [0, 0, -3.45]); aoBlob(SALON, 1.8, 1.15);
 { const sal = SALON, wood = 0xc98a5a;
   mesh(sal, new THREE.BoxGeometry(2.3, 1.45, 1.3), 0xfff1d6, {p:[0, 0.72, 0], receive:true, ow:0.03});
   mesh(sal, new THREE.BoxGeometry(2.5, 0.16, 1.5), wood, {p:[0, 1.53, 0], ow:0.05}); mesh(sal, new THREE.BoxGeometry(0.75, 1.0, 0.06), 0x5aa9e6, {p:[0, 0.5, 0.66], ow:0.08});
@@ -1347,8 +1362,9 @@ const LANES = [[0.3, 0.3, 2.2, 0.4, 0.9]], PLAZA = [0, 0.3, 0.75], ENCU = {value
 // les agrès de l'aire de jeu (rangés pendant le circuit, qui pose les siens)
 const PROPS = grp(scene);
 { const tun = grp(PROPS, [3.1, 0, -0.5], [0, 0.35, 0]); { const m = new THREE.MeshToonMaterial({color:0x5aa9e6, gradientMap:grad, side:THREE.DoubleSide}); mesh(tun, new THREE.CylinderGeometry(0.58, 0.58, 1.5, 20, 1, true, 0, PI).rotateZ(PI / 2), m, {ow:0.04}); }   // demi-tube debout
-  const saw = grp(PROPS, [2.9, 0, 2.75], [0, -0.6, 0]); mesh(saw, new THREE.BoxGeometry(0.36, 0.08, 1.7), 0xd9a066, {p:[0, 0.28, 0], r:[0.22, 0, 0], ow:0.06}); mesh(saw, new THREE.BoxGeometry(0.3, 0.26, 0.2), 0xb07a4a, {p:[0, 0.13, 0]});
-  const logs = grp(PROPS, [1.5, 0, -1.35]); [[0, 0, 0.22, 0.34], [0.42, 0.1, 0.2, 0.26], [-0.38, 0.15, 0.18, 0.22]].forEach(([x, z, rr, h]) => { mesh(logs, new THREE.CylinderGeometry(rr, rr, h, 12), 0xb07a4a, {p:[x, h / 2, z]}); mesh(logs, new THREE.CylinderGeometry(rr * 0.8, rr * 0.8, 0.01, 12), 0xf2c98a, {p:[x, h + 0.005, z], outline:false, shadow:false}); });
+  aoBlob(tun, 0.9, 1.0);
+  const saw = grp(PROPS, [2.9, 0, 2.75], [0, -0.6, 0]); aoBlob(saw, 0.45, 1.05); mesh(saw, new THREE.BoxGeometry(0.36, 0.08, 1.7), 0xd9a066, {p:[0, 0.28, 0], r:[0.22, 0, 0], ow:0.06}); mesh(saw, new THREE.BoxGeometry(0.3, 0.26, 0.2), 0xb07a4a, {p:[0, 0.13, 0]});
+  const logs = grp(PROPS, [1.5, 0, -1.35]); aoBlob(logs, 0.8, 0.55); [[0, 0, 0.22, 0.34], [0.42, 0.1, 0.2, 0.26], [-0.38, 0.15, 0.18, 0.22]].forEach(([x, z, rr, h]) => { mesh(logs, new THREE.CylinderGeometry(rr, rr, h, 12), 0xb07a4a, {p:[x, h / 2, z]}); mesh(logs, new THREE.CylinderGeometry(rr * 0.8, rr * 0.8, 0.01, 12), 0xf2c98a, {p:[x, h + 0.005, z], outline:false, shadow:false}); });
   const hoop = grp(PROPS, [-2.2, 0, 1.35], [0, 0.4, 0]); mesh(hoop, new THREE.TorusGeometry(0.42, 0.05, 8, 24), 0xe8566b, {p:[0, 0.62, 0], ow:0.15}); mesh(hoop, new THREE.CylinderGeometry(0.03, 0.03, 0.22, 6), 0xfff8ec, {p:[0, 0.11, 0]}); mesh(hoop, new THREE.BoxGeometry(0.4, 0.05, 0.2), 0xfff8ec, {p:[0, 0.02, 0]}); }
 const bowl = grp(scene, [2.3, 0, 0.6]);
 mesh(bowl, new THREE.CylinderGeometry(0.34, 0.27, 0.16, 24), 0x5aa9e6, {p:[0, 0.08, 0]});
@@ -1486,7 +1502,7 @@ for (let i = 0; i < 9; i++) { const g = grp(scene, [-34 + i * 8.5, 9 + (i % 3) *
    ========================================================= */
 {
   const far = grp(scene);
-  const meadow = new THREE.Mesh(new THREE.CircleGeometry(80, 48), toon(0xbfe0a2, false)); meadow.rotation.x = -PI / 2; meadow.position.y = -0.04; meadow.receiveShadow = true; far.add(meadow);
+  const meadow = new THREE.Mesh(new THREE.CircleGeometry(80, 48), toon(0x9fd27c, false)); meadow.rotation.x = -PI / 2; meadow.position.y = -0.04; meadow.receiveShadow = true; far.add(meadow);
   // chemin qui part du portail
   const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 34), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.015, 21); far.add(path);
   // la montagne au loin
@@ -1497,10 +1513,17 @@ for (let i = 0; i < 9; i++) { const g = grp(scene, [-34 + i * 8.5, 9 + (i % 3) *
     .forEach(([x, z, r, hgt, c]) => ell(far, r, hgt, r, c, [x, -0.5, z], {outline:false, shadow:false}));
   // arbres et buissons au loin (couleurs délavées par la brume)
   const R = rng(7);
-  for (let i = 0; i < 26; i++) { const a = R() * PI * 2, d = 15 + R() * 14, x = Math.sin(a) * d, z = Math.cos(a) * d; if (Math.abs(x) < 2.5 && z > 6) continue;
-    const t = grp(far, [x, 0, z]), s = 0.8 + R() * 1.1;
-    if (R() < 0.6) { mesh(t, new THREE.CylinderGeometry(0.12 * s, 0.16 * s, 1.1 * s, 6), 0xa58466, {outline:false, p:[0, 0.55 * s, 0]}); ell(t, 0.75 * s, 0.85 * s, 0.75 * s, R() < 0.5 ? 0x8cc77a : 0x9ccf84, [0, 1.5 * s, 0], {outline:false}); }
-    else { [[0, 0.45], [0.5, 0.35], [-0.45, 0.3]].forEach(([ox, r]) => ell(t, r * s * 1.3, r * s, r * s * 1.2, 0x9ccf84, [ox * s, r * s * 0.7, 0], {outline:false, shadow:false})); } }
+  const dirtM = toon(0xe2c992, false), dirtM2 = toon(0xd6bb82, false), tuftPos = [];
+  for (let i = 0; i < 30; i++) { const a = R() * PI * 2, d = 15 + R() * 14, x = Math.sin(a) * d, z = Math.cos(a) * d; if (Math.abs(x) < 2.5 && z > 6) continue;
+    const s = 0.9 + R() * 0.9;
+    if (R() < 0.7) { cartoonTree(far, x, z, s, [0x3f8a3a, 0x4fa046, 0x47963f, 0x5fae4e, 0xf0a040][i % 5], true); }
+    else bush(far, x, z, 1.4 + s * 0.6, [0x4fa046, 0x5fae4e][i % 2]);
+    if (i % 3 === 0) { const dp = new THREE.Mesh(G('dpatch', () => new THREE.CircleGeometry(1, 20)), i % 2 ? dirtM : dirtM2); dp.rotation.x = -PI / 2; dp.position.set(x + 0.6, -0.03, z + 0.4); dp.scale.set(1.4 + R(), 1 + R() * 0.6, 1); far.add(dp); }   // coins de terre
+    for (let k = 0; k < 6; k++) tuftPos.push([x + (R() - 0.5) * 4, z + (R() - 0.5) * 4]); }
+  for (let i = 0; i < 160; i++) { const a = R() * PI * 2, d = 13 + R() * 18; tuftPos.push([Math.sin(a) * d, Math.cos(a) * d]); }
+  { const im = new THREE.InstancedMesh(tuftGeo(), softMat(0x5fae4e, 0.62, 1.15), tuftPos.length), M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3();   // touffes d'herbe du fond : un seul appel
+    tuftPos.forEach(([x, z], i) => { const k = 1.6 + R() * 1.4; M.compose(v.set(x, -0.02, z), q.setFromEuler(e.set(0, R() * 6, 0)), new THREE.Vector3(k, k, k)); im.setMatrixAt(i, M); }); im.castShadow = false; far.add(im); }
+  aoFlush(far);
   // maisons au loin
   [[-16, -20, 0.6], [17, -22, -0.4], [-21, 13, 1.9], [14, 24, 2.6]].forEach(([x, z, ry], i) => { const h = grp(far, [x, 0, z], [0, ry, 0]);
     mesh(h, new THREE.BoxGeometry(3, 2, 2.6), [0xf3e2cc, 0xe9dcc9, 0xf2e6d4, 0xece0cf][i], {outline:false, p:[0, 1, 0]});
@@ -6318,6 +6341,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {OCC, HULL, placeZones, walkable, cutTo, get GSPOT() { return GSPOT; }, KENNEL, walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {OCC, HULL, RAYS, AO, placeZones, walkable, cutTo, get GSPOT() { return GSPOT; }, KENNEL, walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
