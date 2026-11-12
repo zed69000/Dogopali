@@ -775,7 +775,7 @@ function stepQuality(rdt) {
 }
 stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xdff3fb, 13, 36);   // le monde au loin se fond doucement dans le ciel
+scene.fog = new THREE.Fog(0xdff3fb, 26, 70);   // le monde au loin se fond doucement dans le ciel (loin : les cours et la forêt restent nettes)
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
 function lights(sc, shadow) {
   sc.add(new THREE.HemisphereLight(0xfff6e6, 0x9cc77a, 0.58));
@@ -1167,15 +1167,29 @@ const rimM = new THREE.Mesh(new THREE.TorusGeometry(7, 0.06, 6, 90), basic(0x3b2
 // L'ENCLOS : petit au début, on l'agrandit (3 tailles) pour accueillir plus de chiens et plus d'objets
 const ENC = {lv:0, g:null}, ENC_R = [4.7, 5.7, 6.6, 7.4, 8.2], ENC_PRICE = [150, 300, 500, 800], ENC_MAX = [6, 9, 13, 17, 21], ENC_TOP = ENC_R.length - 1;
 const encR = () => ENC_R[ENC.lv];
+/* Les cours hors de l'aire de jeu (plan de Seb) : les niches à gauche, le salon de toilettage au fond, reliées à l'aire
+   par un passage dans la clôture. L'aire clôturée ne sert qu'au jeu et aux activités. */
+const yardN = () => { const r = encR(); return {x0:-(r + 3.6), x1:-(r - 0.2), z0:-3.4, z1:3.4}; };
+const yardS = () => { const r = encR(); return {x0:-2.4, x1:2.4, z0:-(r + 3.8), z1:-(r - 0.2)}; };
+const inRect = (q, x, z, m) => x > q.x0 + m && x < q.x1 - m && z > q.z0 + m && z < q.z1 - m;
+function walkable(x, z, m = 0) { const r = encR(); if (Math.hypot(x, z) < r - m) return true;
+  if (Math.abs(z) < 0.8 - m * 0.5 && x < 0 && x > -r - 0.5) return true;   // passage vers les niches
+  if (Math.abs(x) < 0.8 - m * 0.5 && z < 0 && z > -r - 0.5) return true;   // passage vers le salon
+  return inRect(yardN(), x, z, m) || inRect(yardS(), x, z, m); }
 function buildFence() {
   if (ENC.g) scene.remove(ENC.g); const F = grp(scene), r = encR(), n = Math.round(64 * r / 6.6); ENC.g = F;
-  for (let i = 0; i < n; i++) { const a = i / n * PI * 2; if (Math.cos(a) > 0 && Math.abs(Math.sin(a) * r) < 0.78) continue; mesh(F, G('post', () => new THREE.BoxGeometry(0.14, 0.75, 0.08)), 0xc98a5a, {p:[Math.sin(a) * r, 0.37, Math.cos(a) * r], r:[0, a, 0], ow:0.12}); }
-  const gap = 0.86 / r; [0.28, 0.56].forEach(y => mesh(F, new THREE.TorusGeometry(r, 0.04, 6, 90, PI * 2 - gap * 2).rotateX(PI / 2), 0xe0a868, {outline:false, r:[0, -(PI / 2 + gap), 0], p:[0, y, 0]}));
+  for (let i = 0; i < n; i++) { const a = i / n * PI * 2; if (Math.cos(a) > 0 && Math.abs(Math.sin(a) * r) < 0.78) continue;
+    // passages vers les cours (niches à gauche, salon au fond)
+    if ((Math.sin(a) < 0 && Math.abs(Math.cos(a) * r) < 0.85) || (Math.cos(a) < 0 && Math.abs(Math.sin(a) * r) < 0.85)) continue;
+    mesh(F, G('post', () => new THREE.BoxGeometry(0.14, 0.75, 0.08)), 0xc98a5a, {p:[Math.sin(a) * r, 0.37, Math.cos(a) * r], r:[0, a, 0], ow:0.12}); }
+  const gap = 0.86 / r, segs = [[gap, PI - gap], [PI + gap, 1.5 * PI - gap], [1.5 * PI + gap, 2 * PI - gap]];   // entre l'arche, le salon et les niches
+  [0.28, 0.56].forEach(y => segs.forEach(([a0, a1]) => mesh(F, new THREE.TorusGeometry(r, 0.04, 6, Math.ceil(40 * (a1 - a0)), a1 - a0).rotateX(PI / 2), 0xe0a868, {outline:false, r:[0, -(PI / 2 - a1), 0], p:[0, y, 0]})));
   // au-delà de la clôture : la parcelle à gagner, piquets et petits fanions
   if (ENC.lv < ENC_TOP) { const r2 = ENC_R[ENC.lv + 1]; for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + 0.1; if (Math.cos(a) > 0.85) continue; const p = grp(F, [Math.sin(a) * r2, 0, Math.cos(a) * r2], [0, a, 0]);
     mesh(p, G('stake', () => new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6)), 0xc98a5a, {p:[0, 0.25, 0], outline:false}); mesh(p, G('flag', () => new THREE.ConeGeometry(0.08, 0.16, 3).rotateZ(-PI / 2)), i % 2 ? 0xffc94a : 0xe8566b, {p:[0.07, 0.45, 0], outline:false}); } }
   if (ENC.gate) ENC.gate.position.z = r - 0.02;
   if (typeof buildSurround === 'function' && ENC.ready) buildSurround();
+  if (ENC.zones) placeZones();
 }
 buildFence();
 /* L'île autour de l'enclos (plan de Seb) : un anneau d'arbres, le salon de toilettage au fond, un cercle d'eau
@@ -1187,21 +1201,21 @@ function buildSurround() {
   const wood = 0xc98a5a, roundT = (x, z, k, c, far) => { const t = grp(S2, [x, 0, z]); t.userData.occR = 1.15 * k; ENC.trees.push(t); mesh(t, G('trk', () => new THREE.CylinderGeometry(0.16, 0.24, 1.4, 8)), 0x8a5a36, {p:[0, 0.7, 0], s:[k, k, k], outline:false, shadow:!far});
     [[0, 1.9, 0, 0.95], [-0.55, 1.6, 0.2, 0.65], [0.55, 1.65, -0.1, 0.7]].forEach(([x2, y, z2, rr], i) => ell(t, rr * k, rr * k, rr * k, c, [x2 * k, y * k, z2 * k], {ow:0.05, outline:i === 0 ? undefined : false, shadow:!far && i === 0})); return t; };
   // l'eau : un anneau autour de l'île, et un pont là où passe le chemin
-  const w = new THREE.Mesh(new THREE.RingGeometry(r + 2.6, r + 4.6, 72), toon(0x7cc8ea, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
-  const br = grp(S2, [0, 0, r + 3.6]); mesh(br, new THREE.BoxGeometry(1.9, 0.1, 2.9), wood, {p:[0, 0.08, 0], receive:true, shadow:false});
+  const w = new THREE.Mesh(new THREE.RingGeometry(r + 4.4, r + 6.4, 72), toon(0x7cc8ea, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
+  const br = grp(S2, [0, 0, r + 5.4]); mesh(br, new THREE.BoxGeometry(1.9, 0.1, 2.9), wood, {p:[0, 0.08, 0], receive:true, shadow:false});
   [-1, 1].forEach(sx => { mesh(br, new THREE.BoxGeometry(0.08, 0.08, 2.9), 0x9a6a42, {p:[sx * 0.9, 0.5, 0], shadow:false, outline:false}); [-1.3, 0, 1.3].forEach(z => mesh(br, new THREE.BoxGeometry(0.1, 0.45, 0.1), 0x9a6a42, {p:[sx * 0.9, 0.3, z], shadow:false, outline:false})); });
-  for (let i = 0; i < 14; i++) { const a = R2() * PI * 2, rr = (R2() < 0.5 ? r + 2.55 : r + 4.65) + (R2() - 0.5) * 0.2; if (Math.abs(Math.sin(a) * rr) < 1.4 && Math.cos(a) > 0) continue;
+  for (let i = 0; i < 14; i++) { const a = R2() * PI * 2, rr = (R2() < 0.5 ? r + 4.35 : r + 6.45) + (R2() - 0.5) * 0.2; if (Math.abs(Math.sin(a) * rr) < 1.4 && Math.cos(a) > 0) continue;
     ell(S2, 0.35 + R2() * 0.3, 0.22 + R2() * 0.15, 0.3 + R2() * 0.25, [0xb0aba2, 0x9f9a92][i % 2], [Math.sin(a) * rr, 0.05, Math.cos(a) * rr], {outline:false, shadow:false}); }
-  for (let i = 0; i < 10; i++) { const a = R2() * PI * 2, rr = r + 3.0 + R2() * 1.2; if (Math.abs(Math.sin(a) * rr) < 1.5 && Math.cos(a) > 0) continue;
+  for (let i = 0; i < 10; i++) { const a = R2() * PI * 2, rr = r + 4.8 + R2() * 1.2; if (Math.abs(Math.sin(a) * rr) < 1.5 && Math.cos(a) > 0) continue;
     mesh(S2, G('lily', () => new THREE.CylinderGeometry(0.28, 0.28, 0.02, 14, 1, false, 0.4, PI * 1.8)), 0x5fae4e, {outline:false, shadow:false, p:[Math.sin(a) * rr, 0.0, Math.cos(a) * rr], r:[0, R2() * 6, 0]}); }
-  const dk = grp(S2, [r + 2.9, 0, -1.6], [0, -PI / 2, 0]); mesh(dk, new THREE.BoxGeometry(1.3, 0.08, 1.6), wood, {p:[0, 0.12, 0.5], receive:true, shadow:false});
+  const dk = grp(S2, [r + 4.7, 0, -1.6], [0, -PI / 2, 0]); mesh(dk, new THREE.BoxGeometry(1.3, 0.08, 1.6), wood, {p:[0, 0.12, 0.5], receive:true, shadow:false});
   [-1, 1].forEach(sx => [0, 1].forEach(sz => mesh(dk, new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), 0x9a6a42, {p:[sx * 0.55, -0.05, sz * 1.1], shadow:false, outline:false})));
   // l'anneau d'arbres entre la clôture et l'eau (ni devant le chemin, ni devant le salon)
-  for (let i = 0; i < 18; i++) { const a = i / 18 * PI * 2 + R2() * 0.12, rr = r + 1.2 + R2() * 0.8, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
-    if (Math.abs(x) < 2.2 && z > 0) continue;
+  for (let i = 0; i < 26; i++) { const a = i / 26 * PI * 2 + R2() * 0.1, rr = r + 1.4 + R2() * 2.4, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
+    if (Math.abs(x) < 2.2 && z > 0) continue; if (inRect(yardN(), x, z, -0.9) || inRect(yardS(), x, z, -0.9)) continue;   // pas dans les cours
     roundT(x, z, 0.8 + R2() * 0.45, i % 7 === 3 ? 0xf0a040 : [0x4fa046, 0x5fae4e, 0x47963f][i % 3]); }
   // les bois au bout du chemin, après le pont
-  for (let i = 0; i < 12; i++) { const sx = i % 2 ? 1 : -1, x = sx * (1.7 + R2() * 4.5), z = r + 5.6 + R2() * 5.5; roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); }
+  for (let i = 0; i < 12; i++) { const sx = i % 2 ? 1 : -1, x = sx * (1.7 + R2() * 4.5), z = r + 7.2 + R2() * 5.5; roundT(x, z, 0.9 + R2() * 0.6, [0x3f8a3a, 0x4fa046, 0x47963f][i % 3], true); }
 }
 // portail de devant (la propriétaire entre par là dans l'intro)
 const gate = grp(scene, [0, 0, encR() - 0.02]); ENC.gate = gate; ENC.ready = true; buildSurround();
@@ -1238,7 +1252,8 @@ mesh(tree, new THREE.CylinderGeometry(0.18, 0.26, 1.6, 10), 0x8a5a36, {p:[0, 0.8
 /* LE PARC PAR ZONES (plan de Seb) : la niche et le coin niches à gauche, le salon de toilettage au fond (on y fait
    le bain), le coin câlin devant (plaid et parasol), les agrès dans l'aire de jeu, des chemins de terre entre tout. */
 const GSPOT = new V3(0, 0, -1.55);   // devant le salon : le bain, le rinçage et la brosse se font ici
-{ const sal = grp(scene, [0, 0, -3.45]), wood = 0xc98a5a;
+const SALON = grp(scene, [0, 0, -3.45]);
+{ const sal = SALON, wood = 0xc98a5a;
   mesh(sal, new THREE.BoxGeometry(2.3, 1.45, 1.3), 0xfff1d6, {p:[0, 0.72, 0], receive:true, ow:0.03});
   mesh(sal, new THREE.BoxGeometry(2.5, 0.16, 1.5), wood, {p:[0, 1.53, 0], ow:0.05}); mesh(sal, new THREE.BoxGeometry(0.75, 1.0, 0.06), 0x5aa9e6, {p:[0, 0.5, 0.66], ow:0.08});
   mesh(sal, new THREE.BoxGeometry(0.75, 0.42, 0.04), 0x9fd0f0, {p:[-0.72, 0.85, 0.66], outline:false}); mesh(sal, new THREE.BoxGeometry(0.42, 0.42, 0.04), 0x9fd0f0, {p:[0.75, 0.85, 0.66], outline:false});
@@ -1247,18 +1262,18 @@ const GSPOT = new V3(0, 0, -1.55);   // devant le salon : le bain, le rinçage e
   [[-0.13, 0.1], [0.13, 0.1], [-0.22, -0.04], [0.22, -0.04]].forEach(([x, y]) => ell(sg, 0.05, 0.05, 0.04, 0xfff8ec, [x, y + 0.03, 0.05], {outline:false, shadow:false}));
   [[-1.0, 0xff8fb1], [-0.82, 0x5aa9e6], [1.0, 0x5fae4e]].forEach(([x, c]) => mesh(sal, new THREE.CylinderGeometry(0.08, 0.1, 0.34, 10), c, {p:[x, 0.17, 0.9], shadow:false})); }
 // chemins de terre entre les zones : la même liste sert aux plaques de terre et aux trous dans l'herbe
-const LANES = [[0, 4.8, 0, 2.6, 1.3], [0, 0.4, 0, -2.6, 1.1], [-0.3, 0.2, -2.3, -1.2, 0.9], [0.3, 0.3, 2.2, 0.4, 0.9]], PLAZA = [0, -1.55, 0.95];
+const LANES = [[0.3, 0.3, 2.2, 0.4, 0.9]], PLAZA = [0, 0.3, 0.75], ENCU = {value:4.7};   // + les chemins vers l'arche et les cours, qui suivent l'enclos (placeZones)
 { const dirt = toon(0xe6cf98, false), lane = (x0, z0, x1, z1, w) => { const L = Math.hypot(x1 - x0, z1 - z0), m = new THREE.Mesh(new THREE.PlaneGeometry(w, L), dirt);
     m.rotation.set(-PI / 2, 0, Math.atan2(x1 - x0, z1 - z0)); m.position.set((x0 + x1) / 2, 0.004, (z0 + z1) / 2); m.receiveShadow = true; scene.add(m);
     const c = new THREE.Mesh(new THREE.CircleGeometry(w / 2, 16), dirt); c.rotation.x = -PI / 2; c.position.set(x1, 0.004, z1); c.receiveShadow = true; scene.add(c); };
-  LANES.forEach(l => lane(...l));
+  LANES.forEach(l => lane(...l)); ENC.lane = lane;
   const plaza = new THREE.Mesh(new THREE.CircleGeometry(PLAZA[2], 24), dirt); plaza.rotation.x = -PI / 2; plaza.position.set(PLAZA[0], 0.004, PLAZA[1]); plaza.receiveShadow = true; scene.add(plaza); }
 // les agrès de l'aire de jeu (rangés pendant le circuit, qui pose les siens)
 const PROPS = grp(scene);
 { const tun = grp(PROPS, [3.1, 0, -0.5], [0, 0.35, 0]); { const m = new THREE.MeshToonMaterial({color:0x5aa9e6, gradientMap:grad, side:THREE.DoubleSide}); mesh(tun, new THREE.CylinderGeometry(0.58, 0.58, 1.5, 20, 1, true, 0, PI).rotateZ(PI / 2), m, {ow:0.04}); }   // demi-tube debout
   const saw = grp(PROPS, [2.9, 0, 2.75], [0, -0.6, 0]); mesh(saw, new THREE.BoxGeometry(0.36, 0.08, 1.7), 0xd9a066, {p:[0, 0.28, 0], r:[0.22, 0, 0], ow:0.06}); mesh(saw, new THREE.BoxGeometry(0.3, 0.26, 0.2), 0xb07a4a, {p:[0, 0.13, 0]});
   const logs = grp(PROPS, [1.5, 0, -1.35]); [[0, 0, 0.22, 0.34], [0.42, 0.1, 0.2, 0.26], [-0.38, 0.15, 0.18, 0.22]].forEach(([x, z, rr, h]) => { mesh(logs, new THREE.CylinderGeometry(rr, rr, h, 12), 0xb07a4a, {p:[x, h / 2, z]}); mesh(logs, new THREE.CylinderGeometry(rr * 0.8, rr * 0.8, 0.01, 12), 0xf2c98a, {p:[x, h + 0.005, z], outline:false, shadow:false}); });
-  const hoop = grp(PROPS, [-1.9, 0, 0.35], [0, 0.4, 0]); mesh(hoop, new THREE.TorusGeometry(0.42, 0.05, 8, 24), 0xe8566b, {p:[0, 0.62, 0], ow:0.15}); mesh(hoop, new THREE.CylinderGeometry(0.03, 0.03, 0.22, 6), 0xfff8ec, {p:[0, 0.11, 0]}); mesh(hoop, new THREE.BoxGeometry(0.4, 0.05, 0.2), 0xfff8ec, {p:[0, 0.02, 0]}); }
+  const hoop = grp(PROPS, [-2.2, 0, 1.35], [0, 0.4, 0]); mesh(hoop, new THREE.TorusGeometry(0.42, 0.05, 8, 24), 0xe8566b, {p:[0, 0.62, 0], ow:0.15}); mesh(hoop, new THREE.CylinderGeometry(0.03, 0.03, 0.22, 6), 0xfff8ec, {p:[0, 0.11, 0]}); mesh(hoop, new THREE.BoxGeometry(0.4, 0.05, 0.2), 0xfff8ec, {p:[0, 0.02, 0]}); }
 const bowl = grp(scene, [2.3, 0, 0.6]);
 mesh(bowl, new THREE.CylinderGeometry(0.34, 0.27, 0.16, 24), 0x5aa9e6, {p:[0, 0.08, 0]});
 mesh(bowl, new THREE.CylinderGeometry(0.28, 0.28, 0.02, 24), 0x2d1f17, {outline:false, p:[0, 0.165, 0]});
@@ -1277,7 +1292,7 @@ ell(duck, 0.16, 0.12, 0.2, 0xffd23f, [0, 0.12, 0]); ell(duck, 0.1, 0.1, 0.1, 0xf
 ell(duck, 0.05, 0.025, 0.06, 0xff8a3d, [0, 0.27, 0.21]); [-1, 1].forEach(s => ell(duck, 0.018, 0.022, 0.012, 0x14100e, [s * 0.05, 0.31, 0.18], {outline:false}));
 duck.visible = false;
 const FIXED = [{x:-2.75, z:-2.05, r:1.6, push:1.25, id:'kennel', box:[0.7, 0.7], rot:0.55}, {x:3.05, z:-2.55, r:1.0, push:0.7, id:'tree'}, {x:0, z:1.7, r:1.6, push:0, id:'spot'}, {x:2.3, z:0.6, r:0.7, push:0.45, id:'bowl'}, {x:1.75, z:0.75, r:0.35, push:0.25, id:'parasol'}, {x:0, z:-3.45, r:1.6, push:1.2, id:'salon', box:[1.15, 0.65], rot:0},
-  {x:3.1, z:-0.5, r:0.9, push:0.7, id:'tunnel'}, {x:2.9, z:2.75, r:0.9, push:0.6, id:'saw'}, {x:1.5, z:-1.35, r:0.7, push:0.5, id:'logs'}, {x:-1.9, z:0.35, r:0.5, push:0.35, id:'hoop'}];
+  {x:3.1, z:-0.5, r:0.9, push:0.7, id:'tunnel'}, {x:2.9, z:2.75, r:0.9, push:0.6, id:'saw'}, {x:1.5, z:-1.35, r:0.7, push:0.5, id:'logs'}, {x:-2.2, z:1.35, r:0.5, push:0.35, id:'hoop'}];
 const placed = [];
 const PROP_IDS = new Set(['tunnel', 'saw', 'logs', 'hoop']);
 const obstacles = () => (PROPS.visible ? FIXED : FIXED.filter(o => !PROP_IDS.has(o.id))).concat(placed);   // agrès cachés (circuit) = plus des obstacles
@@ -1415,8 +1430,8 @@ const GRASS = {mats:[], g:grp(scene)};
 {
   const geo = new THREE.CircleGeometry(6.92, 72); geo.rotateX(-PI / 2); const N = 5;
   for (let i = 0; i < N; i++) { const h = (i + 1) / N, m = new THREE.MeshToonMaterial({color:new THREE.Color(0x7cc35c).lerp(new THREE.Color(0x9fd77a), h * 0.6), gradientMap:grad});
-    m.onBeforeCompile = sh => { sh.vertexShader = 'varying vec3 vGw;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vGw = (modelMatrix * vec4(position, 1.0)).xyz;');
-      sh.fragmentShader = 'varying vec3 vGw;\nfloat gh(vec2 p){ return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453); }\nfloat sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+    m.onBeforeCompile = sh => { sh.uniforms.uR = ENCU; sh.vertexShader = 'varying vec3 vGw;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vGw = (modelMatrix * vec4(position, 1.0)).xyz;');
+      sh.fragmentShader = 'varying vec3 vGw;\nfloat gh(vec2 p){ return fract(sin(dot(floor(p), vec2(12.9898, 78.233))) * 43758.5453); }\nuniform float uR;\nfloat sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         vec2 q = vGw.xz * 7.0; vec2 f = fract(q), u = f * f * (3.0 - 2.0 * f);
         float c = mix(mix(gh(q), gh(q + vec2(1, 0)), u.x), mix(gh(q + vec2(0, 1)), gh(q + vec2(1, 1)), u.x), u.y);   // touffes douces
         float n = c * 0.7 + gh(vGw.xz * 70.0) * 0.3;
@@ -1424,7 +1439,9 @@ const GRASS = {mats:[], g:grp(scene)};
         if (max(b.x, b.y) < 0.0) discard;
         float dl = length(vGw.xz - vec2(${PLAZA[0].toFixed(2)}, ${PLAZA[1].toFixed(2)})) - ${PLAZA[2].toFixed(2)};   // pas d'herbe sur les chemins de terre (bord irrégulier)
         ${LANES.map(l => `dl = min(dl, sdSeg(vGw.xz, vec2(${l[0].toFixed(2)}, ${l[1].toFixed(2)}), vec2(${l[2].toFixed(2)}, ${l[3].toFixed(2)})) - ${(l[4] / 2).toFixed(2)});`).join(' ')}
+        dl = min(dl, sdSeg(vGw.xz, vec2(0.0, uR), vec2(0.0, 2.6)) - 0.65); dl = min(dl, sdSeg(vGw.xz, vec2(0.0, 0.3), vec2(0.0, -uR)) - 0.5); dl = min(dl, sdSeg(vGw.xz, vec2(-0.3, 0.2), vec2(-uR, 0.0)) - 0.5);
         if (dl < -0.04 + n * 0.1) discard;
+        if (length(vGw.xz) > uR + 0.05) discard;   // l'herbe haute s'arrête à la clôture
         if (n < ${h.toFixed(2)} * 0.9 + 0.08) discard;`); };
     const sh = new THREE.Mesh(geo, m); sh.position.y = 0.006 + h * 0.04; sh.receiveShadow = true; sh.renderOrder = -1; GRASS.g.add(sh); GRASS.mats.push(m); }
 }
@@ -1986,11 +2003,18 @@ function stopUsing() {
   D.using = null; D.floorT = 0; D.hurdle = null;
   if (D.anim && ['sleep', 'swim', 'dig', 'squeak', 'chase', 'ready'].includes(D.anim.name)) D.anim = null;
 }
+// changement de plan : un fondu, le chien est posé à l'endroit voulu, la caméra y est déjà
+function cutTo(p, yaw) {
+  const f = document.createElement('div'); f.style.cssText = 'position:fixed;inset:0;background:#fff8ec;opacity:1;transition:opacity .45s;z-index:60;pointer-events:none'; document.body.appendChild(f);
+  D.target = null; D.anim = null; D.pos.copy(p); (D.lastOk ||= new V3()).copy(p); D.yaw = yaw; D.faceYaw = yaw; D.posture = 'sit'; D.ground = null;
+  const g = camGoal(); camPos.copy(g[0]); camLook.copy(g[1]);
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.style.opacity = '0'; setTimeout(() => f.remove(), 500); }));
+}
 function setMode(m, silent) {
   if (m === mode && !silent) return;
   const prev = mode; mode = m;
   if (prev === 'decor' && m !== 'decor') endDecor();
-  if (prev === 'bath' && m !== 'bath') endBath();
+  if (prev === 'bath' && m !== 'bath') { endBath(); cutTo(new V3(0, 0, -0.6), PI); }   // retour du salon dans l'aire
   D.waitCall = false;
   if (napping() && m !== 'decor') { mode = m; setAct(); document.getElementById('actions').hidden = false; document.getElementById('decor').hidden = true; return; }
   if (m !== 'play') { stopUsing(); if (m !== 'decor') { D.carrying = false; D.chase = false; D.catchTry = false; ball.state = 'hand'; ball.owner = null; AIM.on = AIM.armed = false; showAim(false); } }
@@ -2003,7 +2027,8 @@ function setMode(m, silent) {
   if (m === 'cuddle' || m === 'bath') {
     if (eating) { eating = false; kibble.forEach(k => k.visible = false); }
     dropBall();
-    { const to = m === 'bath' ? GSPOT : SPOT; goTo(to, D.pos.distanceTo(to) > 2, 0.12, () => { D.faceYaw = 0; D.posture = 'sit'; }); }   // le bain, devant le salon
+    if (m === 'bath' && prev !== 'bath') cutTo(GSPOT, 0);   // changement de plan : on passe au salon de toilettage
+    else goTo(SPOT, D.pos.distanceTo(SPOT) > 2, 0.12, () => { D.faceYaw = 0; D.posture = 'sit'; });
     if (m === 'bath') { startBath(); say(GROOM.kind === 'bain' ? (gauges.proprete > 0.8 ? 'Hiii !' : 'Bain ?') : 'Wouf ?'); }
   } else if (m === 'play' && ball.state === 'rest') setTimeout(ballToHand, 400);
   if (m === 'play' && prev !== 'play' && prev !== 'decor') { D.target = null; D.faceYaw = null; D.posture = 'stand'; D.nextWander = clock + 2.5; if (!silent) { say('Ouaf !'); jump(5); } }
@@ -2165,7 +2190,8 @@ function renderShelf() {
     else b.onclick = () => { S.pop(); buy(k); }; shelf.appendChild(b);
   });
 }
-function validSpot(it) { return Math.hypot(it.x, it.z) + it.r * 0.6 < encR() - 0.35 && free(it.x, it.z, 0.05, it) && Math.hypot(it.x - D.pos.x, it.z - D.pos.z) > 0 ; }
+function validSpot(it) { if (it.kind === 'panier') return true;   // les niches ont leurs places dans leur cour
+  return Math.hypot(it.x, it.z) + it.r * 0.6 < encR() - 0.35 && free(it.x, it.z, 0.05, it) && Math.hypot(it.x - D.pos.x, it.z - D.pos.z) > 0 ; }
 function showTools(on) { tools.hidden = !on; shelf.hidden = on; decorTitle.textContent = on ? 'Glisse-le avec ton doigt' : 'Choisis un objet'; decorTitle.classList.remove('no'); }
 function startDecor() { renderShelf(); showTools(false); }
 function select(it, isNew) {
@@ -2196,7 +2222,7 @@ function growEnclosure() {
 }
 // le coin niches : les petites niches ont des places fixes autour de la grande (plus de niche mal posée)
 // (fonctions, pas constantes : la sauvegarde range les niches avant que le reste du script soit lu)
-function nicheSlots() { return [-96, -72, -49].map(d => { const a = d * PI / 180, x = Math.sin(a) * 3.55, z = Math.cos(a) * 3.55; return {x, z, rot:Math.atan2(-x, -z)}; }); }
+function nicheSlots() { const x = -(encR() + 2.4); return [-0.4, 1.1, 2.6].map(z => ({x, z, rot:PI / 2})); }   // en rangée dans la cour des niches
 function freeNicheSlot() { return nicheSlots().find(sl => !placed.some(p => p.kind === 'panier' && Math.hypot(p.x - sl.x, p.z - sl.z) < 0.4)); }
 function snapNiches() { const ns = nicheSlots(); placed.filter(p => p.kind === 'panier').forEach((p, i) => { const sl = ns[i]; if (sl) moveItem(p, sl.x, sl.z, sl.rot); }); }
 function buy(kind) {
@@ -2418,12 +2444,12 @@ const look = new V3(), hw = new V3(), drive = {fx:0, fz:0, droop:0, splay:0, kic
 /* ---------- VRAI CHEMIN : A* sur une grille de 20 cm de l'enclos (clôture + niche, arbre, piscine…) ---------- */
 const NAV = {cell:0.2};
 function navBlocked(x, z, skip) {
-  if (Math.hypot(x, z) > encR() - 0.42 && !(D.outing && Math.abs(x) < 0.8 && z > 0)) return true;   // pendant la sortie, le passage du portail est ouvert
+  if (!walkable(x, z, 0.42) && !(D.outing && Math.abs(x) < 0.8 && z > 0)) return true;   // pendant la sortie, le passage du portail est ouvert
   for (const o of obstacles()) { if (!o.push || o.id === 'spot' || skip.includes(o.id) || (sel && o === sel.it)) continue; if (obsGap(o, x, z).d < 0.32 * rig.root.scale.x + 0.12) return true; }
   return false;
 }
 function findPath(from, to, skip = []) {
-  const C = NAV.cell, R0 = encR(), N = Math.ceil(R0 * 2 / C) + 1, idx = (i, j) => i * N + j, toI = v => Math.max(0, Math.min(N - 1, Math.round((v + R0) / C))), pos = i => i * C - R0;
+  const C = NAV.cell, R0 = encR() + 3.9, N = Math.ceil(R0 * 2 / C) + 1, idx = (i, j) => i * N + j, toI = v => Math.max(0, Math.min(N - 1, Math.round((v + R0) / C))), pos = i => i * C - R0;
   const blk = new Uint8Array(N * N); for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) blk[idx(i, j)] = navBlocked(pos(i), pos(j), skip) ? 1 : 0;
   const near = (i, j) => { if (!blk[idx(i, j)]) return [i, j]; for (let r = 1; r < 12; r++) for (let a = -r; a <= r; a++) for (const [di, dj] of [[a, -r], [a, r], [-r, a], [r, a]]) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < N && jj < N && !blk[idx(ii, jj)]) return [ii, jj]; } return null; };
   const s0 = near(toI(from.x), toI(from.z)), g0 = near(toI(to.x), toI(to.z)); if (!s0 || !g0) return null;
@@ -2502,7 +2528,7 @@ function stepDog(dt) {
   if (D.spin > 0) { const s = Math.min(D.spin, dt * 14); D.spin -= s; D.yaw += s; D.yawVel = 14; }
   D.speed += (want - D.speed) * damp(D.speed < want ? 5 : 7, dt);
   D.pos.x += Math.sin(D.yaw) * D.speed * dt; D.pos.z += Math.cos(D.yaw) * D.speed * dt;
-  const r = Math.hypot(D.pos.x, D.pos.z), rm = encR() - 0.38; if (r > rm && mode !== 'walk' && !D.outing) D.pos.multiplyScalar(rm / r);   // outing : il sort par le portail pour la balade
+  if (mode !== 'walk' && !D.outing) { if (!walkable(D.pos.x, D.pos.z, 0.38)) { if (D.lastOk) D.pos.copy(D.lastOk); else { const r = Math.hypot(D.pos.x, D.pos.z), rm = encR() - 0.38; D.pos.multiplyScalar(rm / r); } } else (D.lastOk ||= new V3()).copy(D.pos); }   // dans l'aire, les passages et les cours   // outing : il sort par le portail pour la balade
   // coincé ? (il veut avancer mais ne bouge plus) → petit détour par le côté le plus dégagé, puis il reprend sa route
   if (D.target && mode !== 'walk' && mode !== 'agility' && mode !== 'intro' && want > 0.3) {
     if (!D.stk) D.stk = {p:D.pos.clone(), t:0}; D.stk.t += dt;
@@ -3501,12 +3527,12 @@ function walkFromGate() {
   const r = encR(), t0 = performance.now(); let gone = false;
   say('Balade !', 'big'); S.toc(4);
   // la caméra regarde le portail depuis l'enclos : on voit le chien sortir, passer le pont et filer vers les bois
-  CAMO.pos.set(1.5, 1.7, r - 3.6); CAMO.look.set(0, 0.5, r + 4); CAMO.until = performance.now() + 9000;
+  CAMO.pos.set(1.5, 1.9, r - 3.4); CAMO.look.set(0, 0.5, r + 6); CAMO.until = performance.now() + 9000;
   const open = () => { const k = Math.min(1, (performance.now() - t0) / 700); gateDoor.rotation.y = -1.8 * k; if (k < 1) requestAnimationFrame(open); }; open();
   const f = document.createElement('div'); f.style.cssText = 'position:fixed;inset:0;background:#fff8ec;opacity:0;transition:opacity .5s;z-index:60;pointer-events:none'; document.body.appendChild(f);
   const leave = () => { if (gone) return; gone = true; f.style.opacity = '1';
     setTimeout(() => { gateDoor.rotation.y = 0; CAMO.until = 0; D.outing = false; D.exiting = false; startWalk(); f.style.opacity = '0'; setTimeout(() => f.remove(), 600); }, 550); };
-  D.target = null; goTo(new V3(0, 0, r - 0.9), true, 0.35, () => { D.outing = true; goTo(new V3(0, 0, r + 5), true, 0.4, null); setTimeout(leave, 1900); });
+  D.target = null; goTo(new V3(0, 0, r - 0.9), true, 0.35, () => { D.outing = true; goTo(new V3(0, 0, r + 7), true, 0.4, null); setTimeout(leave, 1900); });
   setTimeout(leave, 7000);   // filet de sécurité si le chien est retenu
 }
 function startWalk() {
@@ -5005,6 +5031,22 @@ ICON.soap = '<svg viewBox="0 0 32 32"><rect x="5" y="13" width="20" height="13" 
 const BRUSH_SPOT = new V3(GSPOT.x + 1.4, 0, GSPOT.z + 0.55);
 const BATH = {ready:true, phase:null, foam0:0, brush:0, spraying:false, sx:0, sy:0, sprayT:0, doneT:0};
 const tub = grp(scene, [GSPOT.x, 0, GSPOT.z]); tub.visible = false;
+/* Place ce qui suit la taille de l'enclos : l'île, les cours (sol, niche, salon, coin bain), les chemins de terre. */
+function placeZones() {
+  ENC.zones = true; const r = encR(); ENCU.value = r;
+  const isl = (r + 4.3) / 7; island.scale.set(isl, 1, isl); rimM.scale.set(isl, isl, 1);
+  Object.assign(KENNEL, {x:-(r + 2.4), z:-2.2, rot:PI / 2}); kennel.position.set(KENNEL.x, 0, KENNEL.z); kennel.rotation.y = KENNEL.rot;
+  Object.assign(FIXED.find(o => o.id === 'kennel'), {x:KENNEL.x, z:KENNEL.z, rot:KENNEL.rot});
+  SALON.position.set(0, 0, -(r + 2.85)); FIXED.find(o => o.id === 'salon').z = -(r + 2.85);
+  GSPOT.set(0, 0, -(r + 1.3)); BRUSH_SPOT.set(GSPOT.x + 1.4, 0, GSPOT.z + 0.3); tub.position.set(GSPOT.x, 0, GSPOT.z);
+  if (ENC.zg) scene.remove(ENC.zg); const zg = ENC.zg = grp(scene), gravel = toon(0xeadbb2, false);
+  [yardN(), yardS()].forEach(q => { const m = new THREE.Mesh(new THREE.PlaneGeometry(q.x1 - q.x0 + 0.3, q.z1 - q.z0 + 0.3), gravel); m.rotation.x = -PI / 2; m.position.set((q.x0 + q.x1) / 2, 0.002, (q.z0 + q.z1) / 2); m.receiveShadow = true; zg.add(m);
+    for (let i = 0; i < 10; i++) { const px = q.x0 + (q.x1 - q.x0) * ((i * 0.37) % 1), pz = q.z0 + (q.z1 - q.z0) * ((i * 0.61) % 1); ell(zg, 0.07, 0.03, 0.06, 0xc9bfa8, [px, 0.01, pz], {outline:false, shadow:false}); } });
+  const lane = ENC.lane, keep = scene.children.slice(); lane(0, r + 0.2, 0, 2.6, 1.3); lane(0, 0.3, 0, -(r + 0.6), 1.0); lane(-0.3, 0.2, -(r + 0.6), 0, 1.0);
+  scene.children.filter(o => !keep.includes(o)).forEach(o => { scene.remove(o); zg.add(o); });   // les chemins suivent l'enclos
+  snapNiches();
+}
+placeZones();
 {
   const tm = new THREE.MeshToonMaterial({color:0x7cc8f2, gradientMap:grad, side:THREE.DoubleSide});
   mesh(tub, new THREE.CylinderGeometry(0.86, 0.78, 0.24, 36, 1, true), tm, {p:[0, 0.12, 0], ow:0.03});
@@ -5660,7 +5702,7 @@ function stepNpcs(dt) {
     // un chien qui ne bouge pas (dort, mange, tire la balle…) : c'est ton chien qui s'écarte, il ne lui rentre jamais dedans
     const tugD = PACK.tug && (PACK.tug.a === n || PACK.tug.b === n) && (PACK.tug.a === 'D' || PACK.tug.b === 'D');
     if (fixed && !n.leaving && !napping() && !D.using && !tugD) { const d = D.pos.clone().sub(n.pos).setY(0), L = d.length(), R = asleep && !n.target ? Math.max(0.75, cD + 0.1) : cD + 0.02; if (L < R && L > 1e-3) D.pos.addScaledVector(d.normalize(), (R - L) * Math.min(1, dt * 8)); }
-    if (!n.leaving) { const rn = encR() - 0.55, h = Math.hypot(n.pos.x, n.pos.z); if (h > rn) n.pos.multiplyScalar(rn / h); }
+    if (!n.leaving) { if (!walkable(n.pos.x, n.pos.z, 0.55)) { if (n.lastOk) n.pos.copy(n.lastOk); else { const rn = encR() - 0.55, h = Math.hypot(n.pos.x, n.pos.z); n.pos.multiplyScalar(rn / h); } } else (n.lastOk ||= new V3()).copy(n.pos); }
     if (!n.leaving && !asleep && !(n.squeeze > clock)) obstacles().forEach(o => { if (!o.push || o.id === 'spot' || o.id === n.bed || (n.item && o.id === n.item.id) || (n.task && n.task.bowl && o.id === n.task.bowl.id)) return; const g = obsGap(o, n.pos.x, n.pos.z), r = bodyR(n.rig, n.yaw, -g.nx, -g.nz) * 0.9; if (g.d < r) { n.pos.x += g.nx * (r - g.d); n.pos.z += g.nz * (r - g.d); } });
     if (!n.ball && !n.leaving && !asleep && n.act !== 'run' && n.pos.z > 3.0) { n.pos.z -= dt * 1.2; if (!n.target) { n.target = quietSpot(n); n.act = 'walk'; n.spd = 0.8; } }
     // saut de joie (touché / attrapé)
@@ -6159,6 +6201,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {placeZones, walkable, cutTo, get GSPOT() { return GSPOT; }, KENNEL, walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
