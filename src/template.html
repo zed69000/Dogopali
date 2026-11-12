@@ -1205,8 +1205,8 @@ const yardN = () => { const r = encR(); return {x0:-(r + 3.6), x1:-(r - 0.2), z0
 const yardS = () => { const r = encR(); return {x0:-2.4, x1:2.4, z0:-(r + 3.8), z1:-(r - 0.2)}; };
 const inRect = (q, x, z, m) => x > q.x0 + m && x < q.x1 - m && z > q.z0 + m && z < q.z1 - m;
 function walkable(x, z, m = 0) { const r = encR(); if (Math.hypot(x, z) < r - m) return true;
-  if (Math.abs(z) < 0.8 - m * 0.5 && x < 0 && x > -r - 0.5) return true;   // passage vers les niches
-  if (Math.abs(x) < 0.8 - m * 0.5 && z < 0 && z > -r - 0.5) return true;   // passage vers le salon
+  if (Math.abs(z) < 0.62 && x < 0 && x > -r - 0.5) return true;   // passage vers les niches (même largeur pour tous : le chemin calculé et le pas des chiens sont d'accord)
+  if (Math.abs(x) < 0.62 && z < 0 && z > -r - 0.5) return true;   // passage vers le salon
   return inRect(yardN(), x, z, m) || inRect(yardS(), x, z, m); }
 /* DÉCOR DOUX ET ROND (DA) : un matériau toon en dégradé (clair en haut, plus foncé en bas de chaque masse),
    des arbres en plusieurs masses avec un tronc évasé, des buissons en bulles, des poteaux à tête ronde. */
@@ -1317,6 +1317,22 @@ const gateDoor = grp(gate, [-0.78, 0, 0]);
 for (let k = 0; k < 6; k++) mesh(gateDoor, new THREE.BoxGeometry(0.13, 0.78, 0.06), 0xd9a066, {p:[0.14 + k * 0.255, 0.42, 0], ow:0.1});
 [0.25, 0.6].forEach(y => mesh(gateDoor, new THREE.BoxGeometry(1.5, 0.07, 0.05), 0xb07a4a, {p:[0.78, y, 0.02], outline:false}));
 ell(gateDoor, 0.13, 0.11, 0.03, 0xe8566b, [0.78, 0.86, 0.04], {ow:0.15});
+// la belle niche (murs, porte ronde en haut, toit de tuiles et sa bordure, l'os au-dessus de la porte) : la même pour toutes, chacune sa couleur
+function nicheModel(g, c) {
+  const col = new THREE.Color(c), sh = k => col.clone().multiplyScalar(k).getHex(), roof = ({0x5aa9e6:0x3d7fc4, 0xffc94a:0xe88f3a, 0xb59cff:0x8a6ee0, 0x5fae4e:0x3f8a3a, 0xe8566b:0xd8643e})[c] ?? sh(0.8);
+  const kw = (w, h, dd, p) => mesh(g, new THREE.BoxGeometry(w, h, dd), c, {p, receive:true, ow:0.04});
+  kw(1.5, 1.05, 0.1, [0, 0.52, -0.7]); kw(0.1, 1.05, 1.5, [-0.7, 0.52, 0]); kw(0.1, 1.05, 1.5, [0.7, 0.52, 0]);
+  kw(0.41, 1.05, 0.1, [-0.545, 0.52, 0.7]); kw(0.41, 1.05, 0.1, [0.545, 0.52, 0.7]); kw(0.68, 0.43, 0.1, [0, 0.835, 0.7]);
+  mesh(g, new THREE.BoxGeometry(1.3, 0.04, 1.3), sh(0.62), {outline:false, p:[0, 0.02, 0], receive:true});
+  mesh(g, new THREE.BoxGeometry(1.3, 1.0, 0.02), sh(0.55), {outline:false, p:[0, 0.52, -0.64]});
+  ell(g, 0.48, 0.07, 0.42, 0xfff1d6, [0, 0.08, -0.12], {outline:false});
+  mesh(g, new THREE.BoxGeometry(1.5, 0.08, 1.5), sh(0.8), {outline:false, p:[0, 1.06, 0]});
+  [-1, 1].forEach(s2 => { mesh(g, new THREE.BoxGeometry(1.15, 0.1, 1.8), roof, {p:[s2 * 0.42, 1.32, 0], r:[0, 0, s2 * -0.72], ow:0.05});
+    mesh(g, new THREE.BoxGeometry(1.19, 0.14, 0.09), 0xf2b36a, {p:[s2 * 0.42, 1.33, 0.9], r:[0, 0, s2 * -0.72], ow:0.06}); });
+  const bone = grp(g, [0, 0.98, 0.78]); mesh(bone, new THREE.BoxGeometry(0.3, 0.08, 0.05), 0xfff8ec, {ow:0.12});
+  [-1, 1].forEach(sx => [-1, 1].forEach(sy => ell(bone, 0.06, 0.06, 0.035, 0xfff8ec, [sx * 0.16, sy * 0.04, 0], {ow:0.12})));
+  aoBlob(g, 0.95, 1.05);
+}
 const kennel = grp(scene, [-2.75, 0, -2.05], [0, 0.55, 0]); aoBlob(kennel, 0.95, 1.05);
 const kennelWalls = [];
 { const kw = (w, h, dd, p) => { const m = mesh(kennel, new THREE.BoxGeometry(w, h, dd), 0xe8566b, {p, receive:true, ow:0.04}); kennelWalls.push(m); return m; };
@@ -1414,13 +1430,8 @@ const ITEMS = {
     ell(g, 0.09, 0.05, 0.02, 0xfff8ec, [0, 0.07, 0.27], {outline:false});
     g.userData.kib = []; for (let i = 0; i < 9; i++) { const a = i * 2.4, r = 0.04 + (i % 3) * 0.06; const k = ell(g, 0.05, 0.04, 0.05, 0xc07a3c, [Math.cos(a) * r, 0.16, Math.sin(a) * r], {outline:false}); k.visible = false; g.userData.kib.push(k); } }},
   panier:{name:'Niche', price:60, r:1.0, push:0.8, hard:0.72, box:[0.68, 0.75], use:'bed', build(g0) {   // une petite niche par chien (ouverte devant, coussin dedans)
-    const g = grp(g0); g.scale.setScalar(1.45);   // assez grande pour un chien adulte qui dort dedans
-    const c = [0x5aa9e6, 0xffc94a, 0xb59cff, 0x5fae4e][placed.filter(p => p.kind === 'panier').length % 4];
-    mesh(g, new THREE.BoxGeometry(0.9, 0.04, 0.9), 0xd8c7a8, {outline:false, p:[0, 0.02, 0], receive:true});
-    mesh(g, new THREE.BoxGeometry(0.9, 0.62, 0.06), c, {p:[0, 0.31, -0.42], ow:0.04}); [-1, 1].forEach(s => mesh(g, new THREE.BoxGeometry(0.06, 0.62, 0.9), c, {p:[s * 0.42, 0.31, 0], ow:0.04}));
-    [-1, 1].forEach(s => mesh(g, new THREE.BoxGeometry(0.2, 0.62, 0.06), c, {p:[s * 0.33, 0.31, 0.42], ow:0.04})); mesh(g, new THREE.BoxGeometry(0.46, 0.2, 0.06), c, {p:[0, 0.52, 0.42], ow:0.04});
-    [-1, 1].forEach(s => mesh(g, new THREE.BoxGeometry(0.7, 0.06, 1.05), 0xfff8ec, {p:[s * 0.25, 0.78, 0], r:[0, 0, s * -0.7], ow:0.05}));
-    ell(g, 0.32, 0.05, 0.3, 0xfff1d6, [0, 0.06, -0.05], {outline:false}); }},
+    const g = grp(g0); g.scale.setScalar(0.88);   // la même niche que la première, à peine plus petite (porte assez grande pour un adulte)
+    nicheModel(g, [0x5aa9e6, 0xffc94a, 0xb59cff, 0x5fae4e][placed.filter(p => p.kind === 'panier').length % 4]); }},
   piscine:{name:'Piscine', price:120, r:1.05, push:0.95, hard:0.9, use:'pool', build(g) {
     stripe(g, 0.88, 0.16, 0.16, 8, 0x5aa9e6, 0xfff8ec);
     stripe(g, 0.88, 0.14, 0.42, 8, 0xfff8ec, 0x5aa9e6);
@@ -2210,6 +2221,7 @@ function useKennel(byPlayer) {
   return true;
 }
 function useItem(it, byPlayer) {
+  if (D.goingNap && !byPlayer) return false;   // il part au dodo : il ne s'arrête pas jouer en chemin
   const d = ITEMS[it.kind];
   if (!d.use || eating || D.carrying || mode !== 'play') return false;
   if (sadness() > 0.6) { if (byPlayer) say('Snif…'); return false; }
@@ -2596,6 +2608,8 @@ function npcPathYaw(n, L, skip, fast) {
   else if (clock - n.prog.t > 1) { n.prog.stk = L > n.prog.L - 0.12 ? n.prog.stk + 1 : 0; n.prog.L = L; n.prog.t = clock; }
   const stk = n.prog.stk;
   if (stk >= 2 && n.path && n.path.length) n.squeeze = clock + 0.8;   // coincé alors qu'un chemin existe : il se faufile (on relâche les objets un instant)
+  if (stk >= 3 && n.bed && (n.bedTries = (n.bedTries || 0) + 1) <= 6) { n.prog.stk = 0; n.squeeze = clock + 1.5; n.path = null;
+    const r0 = encR(); if (n.pos.x < -r0 + 1.6 && Math.abs(n.pos.z) < 1.6) n.pos.z *= 0.6; else if (n.pos.z < -r0 + 1.6 && Math.abs(n.pos.x) < 1.6) n.pos.x *= 0.6; }   // coincé au coin du passage : il se recale dans l'axe du passage   // il va se coucher : il se faufile et réessaie (un chien sur le passage) avant de dormir où il est
   if (stk >= 5 && n.task) { const c = new V3(-n.pos.x, 0, -n.pos.z).normalize(); n.pos.addScaledVector(c, 0.35); n.hop = 1; n.prog.stk = 2; n.path = null; return Math.atan2(c.x, c.z); }   // en mission (manger…) : petit bond pour sortir du coin, puis il reprend son chemin
   if (stk >= 5) { n.target = null; n.path = null; n.prog = null; if (n.act !== 'run') { n.act = 'sit'; n.then = null; } n.next = clock + 1.5; if (n.task) n.task = null; return n.yaw; }   // vraiment coincé : il laisse tomber et fera autre chose
   const blocked = () => { const D2 = tg.distanceTo(n.pos), k = Math.ceil(D2 / 0.12); for (let q = 1; q < k; q++) { const u = q / k; if (navBlocked(n.pos.x + (tg.x - n.pos.x) * u, n.pos.z + (tg.z - n.pos.z) * u, skip)) return true; } return false; };
@@ -3245,9 +3259,9 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!sheet.h
    PROGRESSION : niveaux, déblocages, cadeaux, accessoires
    ========================================================= */
 const LV = [0, 0, 40, 220, 480, 800, 1200, 1700, 2300, 3000, 3800];   // LV[n] = XP pour atteindre le niveau n
-const UNLOCK = {laver:2, eduquer:3, decorer:3, balade:4, concours:5, circuit:6, famille:7};
+const UNLOCK = {dodo:0, laver:2, eduquer:3, decorer:3, balade:4, concours:5, circuit:6, famille:7};
 const ACT_NAME = {laver:'Laver', eduquer:'Éduquer', balade:'Balade', decorer:'Décorer', circuit:'Circuit', concours:'Concours', famille:'Famille'};
-const ACT_ICO = {laver:'proprete', eduquer:'train', balade:'walk', decorer:'decor', circuit:'agility', concours:'star', famille:'calins'};
+const ACT_ICO = {dodo:'energie', laver:'proprete', eduquer:'train', balade:'walk', decorer:'decor', circuit:'agility', concours:'star', famille:'calins'};
 const LV_REWARD = {2:{coins:50, acc:'bandana'}, 3:{coins:80, acc:'noeud'}, 4:{coins:100, acc:'casquette'}, 5:{coins:120, acc:'medaille'}, 6:{coins:150, acc:'couronne'}, 7:{coins:200}, 8:{coins:250}, 9:{coins:300}, 10:{coins:400}};
 const ACC_NAME = {bandana:'Bandana', noeud:'Petit nœud', casquette:'Casquette', medaille:'Médaille', couronne:'Couronne'};
 const il = () => BREEDS[breed].fem ? 'elle' : 'il', Il = () => BREEDS[breed].fem ? 'Elle' : 'Il', le = () => BREEDS[breed].fem ? 'la' : 'le';
@@ -3342,7 +3356,7 @@ function speak(text) {
    ========================================================= */
 const panel = document.getElementById('panel');
 function openActivities() {
-  const list = [['eduquer', 'Éduquer', 'Apprendre des tours'], ['concours', 'Concours', 'Une coupe par jour'], ['famille', 'Famille', 'Des bébés chiots'], ['balade', 'Balade', 'En laisse au parc'], ['circuit', 'Circuit', "Parcours d'agilité"], ['decorer', 'Décorer', 'Le jardin']];
+  const list = [['eduquer', 'Éduquer', 'Apprendre des tours'], ['concours', 'Concours', 'Une coupe par jour'], ['famille', 'Famille', 'Des bébés chiots'], ['balade', 'Balade', 'En laisse au parc'], ['circuit', 'Circuit', "Parcours d'agilité"], ['decorer', 'Décorer', 'Le jardin'], ['dodo', 'Dodo', 'Au lit, tout le monde']];
   panel.innerHTML = `<div class="prow"><span class="ptitle">Activités</span><button class="cta small" id="pClose">Fermer</button></div>
     <div class="acts">${list.map(([a, n, d]) => `<button class="acard ${unlockedAt(a) ? '' : 'locked'} ${fullLocked(a) ? 'full-locked' : ''}" data-a="${a}">${ICON[ACT_ICO[a]]}<span>${n}</span><small>${unlockedAt(a) ? d : 'Niveau ' + UNLOCK[a]}</small>${fullLocked(a) ? '<i class="lockfull">Complète</i>' : ''}</button>`).join('')}</div>`;
   panel.hidden = false; document.getElementById('actions').hidden = true;
@@ -3352,8 +3366,16 @@ function openActivities() {
     if (fullLocked(a)) { closePanel(); askFull(a); return; }
     S.toc(2); closePanel();
     if (a === 'concours' && !contestReady()) { S.deny(); tip(b, 'Apprends 3 tours'); return; }
-    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'concours') startContest(); else if (a === 'famille') startFamily(); else if (a === 'balade') walkFromGate(); else if (a === 'circuit') startAgility();
+    if (a === 'decorer') setMode('decor'); else if (a === 'eduquer') startTrain(); else if (a === 'concours') startContest(); else if (a === 'famille') startFamily(); else if (a === 'balade') walkFromGate(); else if (a === 'circuit') startAgility(); else if (a === 'dodo') bedtime();
   });
+}
+// Dodo : chacun va dans sa niche (ou la grande), et dort jusqu'à ce qu'on le réveille (sifflet) ou qu'il soit reposé
+function bedtime() {
+  if (mode !== 'cuddle' && mode !== 'play') setMode('cuddle');
+  say('Ouaaah…'); dropBall();
+  const tryNap = k => { if (napping() || D.goingNap) return; const deep = (D.energy ?? 1) < 0.6; if (nap(deep ? 99999 : 45)) D.deepSleep = deep; else if (k < 10) setTimeout(() => tryNap(k + 1), 700); };   // fatigué : jusqu'à être reposé ; sinon une bonne sieste (il finit d'abord ce qu'il fait : manger…)
+  setTimeout(() => tryNap(0), 300);
+  npcs.forEach((n, i) => setTimeout(() => goSleep(n, false, 45 + i * 6), 500 + i * 400));   // même ceux qui somnolaient dans l'herbe vont dans leur niche
 }
 function closePanel() { panel.hidden = true; panel.innerHTML = ''; if (!['train', 'walk', 'agility', 'intro', 'decor'].includes(mode)) document.getElementById('actions').hidden = false; }
 
@@ -5604,10 +5626,10 @@ function bedFor(n) {   // son panier (un par chien), sinon la niche si personne 
   if (!taken.has('kennel') && D.using !== 'kennel' && !D.goingNap) return {id:'kennel', at:kennelIn(), yaw:KENNEL.rot};
   const p = quietSpot(n); return {id:null, at:p, yaw:Math.random() * PI * 2};
 }
-function goSleep(n, short) {
+function goSleep(n, short, sleepFor) {   // sleepFor : l'heure du dodo demandée, il dort au moins ce temps-là même s'il n'est pas fatigué
   const ds = dogState(n.key); endToy(n); n.ball = null; n.act = 'walk'; ds.sleeping = true;
-  const b = short ? {id:null, at:n.pos.clone(), yaw:n.yaw} : bedFor(n); n.bed = b.id; n.bedYaw = b.yaw; n.target = b.at; n.spd = 0.8;
-  n.napUntil = short ? clock + 40 + Math.random() * 50 : 0; npcBark(n, 'Ouaaah…');
+  const b = short ? {id:null, at:n.pos.clone(), yaw:n.yaw} : bedFor(n); n.bedTries = 0; n.bed = b.id; n.bedYaw = b.yaw; n.target = b.at; n.spd = 0.8;
+  n.napUntil = short ? clock + 40 + Math.random() * 50 : sleepFor && (ds.en ?? 1) > 0.6 ? clock + sleepFor : 0; npcBark(n, 'Ouaaah…');
 }
 function wakeNpc(n, txt = 'Wouf !') { const ds = dogState(n.key); ds.sleeping = false; n.bed = null; n.napUntil = 0; n.act = 'stretch'; n.actT = clock + 1.4; n.target = null; npcBark(n, txt); n.next = clock + 2; }
 function startToy(n) {
