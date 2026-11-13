@@ -782,7 +782,7 @@ function stepQuality(rdt) {
 stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xdff3fb, 26, 70);   // le monde au loin se fond doucement dans le ciel (loin : les cours et la forêt restent nettes)
-const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.2, 120);   // plan proche à 0,2 : deux fois plus de précision de profondeur au loin
 function lights(sc, shadow) {
   sc.add(new THREE.HemisphereLight(0xfff6e6, 0x9cc77a, 0.58));
   const s = new THREE.DirectionalLight(0xffffff, 0.72); s.position.set(5, 11, 7);
@@ -1295,8 +1295,8 @@ function buildSurround() {
   // arbres légers : un seul contour (la grosse boule), pas d'ombre pour les bois lointains
   const wood = 0xc98a5a, roundT = (x, z, k, c, far) => { const t = cartoonTree(S2, x, z, k, c, far); ENC.trees.push(t); return t; };
   // l'eau : un anneau autour de l'île, et un pont là où passe le chemin
-  const w = new THREE.Mesh(new THREE.RingGeometry(r + 4.4, r + 6.4, 72), toon(0x6fc0e8, false)); w.rotation.x = -PI / 2; w.position.y = -0.02; w.receiveShadow = true; S2.add(w);
-  [[r + 4.4, r + 4.95, 0xa6dcf4, -0.015], [r + 5.85, r + 6.4, 0xa6dcf4, -0.015]].forEach(([a, b, c, y]) => { const m = new THREE.Mesh(new THREE.RingGeometry(a, b, 72), basic(c)); m.rotation.x = -PI / 2; m.position.y = y; S2.add(m); });   // bords clairs
+  const w = new THREE.Mesh(new THREE.RingGeometry(r + 4.4, r + 6.4, 72), toon(0x6fc0e8, false)); w.rotation.x = -PI / 2; w.position.y = -0.04; w.receiveShadow = true; S2.add(w);
+  [[r + 4.4, r + 4.95, 0xa6dcf4, -0.02], [r + 5.85, r + 6.4, 0xa6dcf4, -0.02]].forEach(([a, b, c, y]) => { const m = new THREE.Mesh(new THREE.RingGeometry(a, b, 72), basic(c)); m.rotation.x = -PI / 2; m.position.y = y; S2.add(m); });   // bords clairs
   const foam = new THREE.Mesh(new THREE.TorusGeometry(r + 4.42, 0.06, 6, 90), basic(0xffffff, 0.85)); foam.rotation.x = PI / 2; foam.position.y = 0.0; S2.add(foam);   // liseré d'écume
   const br = grp(S2, [0, 0, r + 5.4]); mesh(br, new THREE.BoxGeometry(1.9, 0.1, 2.9), wood, {p:[0, 0.08, 0], receive:true, shadow:false});
   [-1, 1].forEach(sx => { mesh(br, new THREE.BoxGeometry(0.08, 0.08, 2.9), 0x9a6a42, {p:[sx * 0.9, 0.5, 0], shadow:false, outline:false}); [-1.3, 0, 1.3].forEach(z => mesh(br, new THREE.BoxGeometry(0.1, 0.45, 0.1), 0x9a6a42, {p:[sx * 0.9, 0.3, z], shadow:false, outline:false})); });
@@ -1535,12 +1535,12 @@ for (let i = 0; i < 9; i++) { const g = grp(scene, [-34 + i * 8.5, 9 + (i % 3) *
    ========================================================= */
 {
   const far = grp(scene);
-  const meadow = new THREE.Mesh(new THREE.CircleGeometry(80, 48), toon(0x9fd27c, false)); meadow.rotation.x = -PI / 2; meadow.position.y = -0.04; meadow.receiveShadow = true; far.add(meadow);
+  const meadow = new THREE.Mesh(new THREE.CircleGeometry(80, 48), toon(0x9fd27c, false)); meadow.rotation.x = -PI / 2; meadow.position.y = -0.1; meadow.receiveShadow = true; far.add(meadow);
   // chemin qui part du portail
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 34), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.015, 21); far.add(path);
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 34), toon(0xf1e3c4, false)); path.rotation.x = -PI / 2; path.position.set(0, -0.05, 21); far.add(path);
   // la montagne au loin
   { const mm = new THREE.MeshToonMaterial({color:0x9fb3cc, gradientMap:grad, fog:false}), sn = new THREE.MeshToonMaterial({color:0xffffff, gradientMap:grad, fog:false});   // les montagnes au loin, nettes
-    [[20, -58, 20, 30], [-16, -62, 17, 25], [2, -70, 24, 38], [-38, -52, 14, 18], [40, -50, 13, 17]].forEach(([x, z, rr, h]) => { mesh(far, new THREE.ConeGeometry(rr, h, 9), mm, {outline:false, shadow:false, p:[x, h / 2 - 1, z]}); mesh(far, new THREE.ConeGeometry(rr * 0.34, h * 0.34, 9), sn, {outline:false, shadow:false, p:[x, h - 1 - h * 0.17, z]}); }); }
+    [[20, -58, 20, 30], [-16, -62, 17, 25], [2, -70, 24, 38], [-38, -52, 14, 18], [40, -50, 13, 17]].forEach(([x, z, rr, h]) => { mesh(far, new THREE.ConeGeometry(rr, h, 9), mm, {outline:false, shadow:false, p:[x, h / 2 - 1, z]}); mesh(far, new THREE.ConeGeometry(rr * 0.37, h * 0.34, 9), sn, {outline:false, shadow:false, p:[x, h - 1 - h * 0.17 + 0.25, z]}); }); }
   // collines douces
   [[-30, -40, 22, 6, 0xb2d896], [8, -48, 26, 8, 0xa9d28d], [40, -30, 20, 6, 0xb8dc9c], [-46, 6, 18, 5, 0xb6da9a], [46, 14, 18, 5, 0xb2d896], [-20, 40, 20, 5, 0xbadea0], [26, 44, 22, 6, 0xb6da9a]]
     .forEach(([x, z, r, hgt, c]) => ell(far, r, hgt, r, c, [x, -0.5, z], {outline:false, shadow:false}));
@@ -1551,11 +1551,11 @@ for (let i = 0; i < 9; i++) { const g = grp(scene, [-34 + i * 8.5, 9 + (i % 3) *
     const s = 0.9 + R() * 0.9;
     if (R() < 0.7) { cartoonTree(far, x, z, s, [0x3f8a3a, 0x4fa046, 0x47963f, 0x5fae4e, 0xf0a040][i % 5], true); }
     else bush(far, x, z, 1.4 + s * 0.6, [0x4fa046, 0x5fae4e][i % 2]);
-    if (i % 3 === 0) { const dp = new THREE.Mesh(G('dpatch', () => new THREE.CircleGeometry(1, 20)), i % 2 ? dirtM : dirtM2); dp.rotation.x = -PI / 2; dp.position.set(x + 0.6, -0.03, z + 0.4); dp.scale.set(1.4 + R(), 1 + R() * 0.6, 1); far.add(dp); }   // coins de terre
+    if (i % 3 === 0) { const dp = new THREE.Mesh(G('dpatch', () => new THREE.CircleGeometry(1, 20)), i % 2 ? dirtM : dirtM2); dp.rotation.x = -PI / 2; dp.position.set(x + 0.6, -0.07, z + 0.4); dp.scale.set(1.4 + R(), 1 + R() * 0.6, 1); far.add(dp); }   // coins de terre
     for (let k = 0; k < 6; k++) tuftPos.push([x + (R() - 0.5) * 4, z + (R() - 0.5) * 4]); }
   for (let i = 0; i < 160; i++) { const a = R() * PI * 2, d = 13 + R() * 18; tuftPos.push([Math.sin(a) * d, Math.cos(a) * d]); }
   { const im = new THREE.InstancedMesh(tuftGeo(), softMat(0x5fae4e, 0.62, 1.15), tuftPos.length), M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3();   // touffes d'herbe du fond : un seul appel
-    tuftPos.forEach(([x, z], i) => { const k = 1.6 + R() * 1.4; M.compose(v.set(x, -0.02, z), q.setFromEuler(e.set(0, R() * 6, 0)), new THREE.Vector3(k, k, k)); im.setMatrixAt(i, M); }); im.castShadow = false; far.add(im); }
+    tuftPos.forEach(([x, z], i) => { const k = 1.6 + R() * 1.4; M.compose(v.set(x, -0.08, z), q.setFromEuler(e.set(0, R() * 6, 0)), new THREE.Vector3(k, k, k)); im.setMatrixAt(i, M); }); im.castShadow = false; far.add(im); }
   aoFlush(far);
   // maisons au loin
   [[-16, -20, 0.6], [17, -22, -0.4], [-21, 13, 1.9], [14, 24, 2.6]].forEach(([x, z, ry], i) => { const h = grp(far, [x, 0, z], [0, ry, 0]);
