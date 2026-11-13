@@ -1718,8 +1718,10 @@ function addGrow(pts, key = breed, quiet) {
   if (!quiet && key === breed) { const b = document.querySelector('#chipBreed .gbar'); if (b) { b.classList.remove('up'); void b.offsetWidth; b.classList.add('up'); } }
   if (key === breed) chipGrow();
 }
-function npcGrew(k) { const n = npcs.find(x => x.key === k); seen[k] = dayOf(k); if (n) { const p = n.pos.clone(), y = n.yaw; addNpc(k, p, y); const m = npcs.find(x => x.key === k); m && npcBark(m, 'Youpi !'); }
-  S.fanfare(); setTimeout(() => miniToast(`<img src="${portrait(k, ageOf(k))}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`, `${BREEDS[k].dog} a grandi !`, stageOf(dayOf(k))), 300); }
+function npcGrew(k) { const n = npcs.find(x => x.key === k), sv0 = seen[k] ?? 0; seen[k] = dayOf(k); if (n) { const p = n.pos.clone(), y = n.yaw; addNpc(k, p, y); const m = npcs.find(x => x.key === k); m && npcBark(m, 'Youpi !'); }
+  S.fanfare(); save(); const toSt = stageOf(seen[k]), gi = growInfo(toSt);   // lui aussi a droit à son grand moment et à sa récompense
+  setTimeout(() => whenFree(() => growCeremony({key:k, name:BREEDS[k].dog, fromSt:stageOf(sv0), toSt, what:gi.what, oldG:growthOf(sv0), newG:growthOf(seen[k]), acc:dogState(k).acc, reward:gi.reward})), 900); }
+const growInfo = toSt => ({what:toSt === 'Petit' ? 'Ses pattes et son museau ont poussé !' : toSt === 'Ado' ? 'Il est plus grand et plus rapide !' : 'Il est devenu un grand chien !', reward:toSt === 'Petit' ? 40 : toSt === 'Ado' ? 70 : 120});
 function sleepGrow(key, dt) { addGrow(dt * 0.008, key, true); }   // il grandit aussi un peu en dormant
 const growthOf = d => d >= ADULT_DAY ? 1 : d >= 6 ? 0.72 : d >= 3 ? 0.42 : 0;   // l'apparence change à chaque étape (pas tous les jours)
 const stageOf = d => d >= ADULT_DAY ? 'Adulte' : d >= 6 ? 'Ado' : d >= 3 ? 'Petit' : 'Bébé';
@@ -3185,8 +3187,7 @@ function grow(d) {
   D.ground = null; D.grow = {t:-0.35, from:old / rig.b.size};
   chipText(); save();
   const toSt = stageOf(d);
-  const what = toSt === 'Petit' ? 'Ses pattes et son museau ont poussé !' : toSt === 'Ado' ? 'Il est plus grand et plus rapide !' : 'Il est devenu un grand chien !';
-  const reward = toSt === 'Petit' ? 40 : toSt === 'Ado' ? 70 : 120, oldG = growthOf(sv0);
+  const {what, reward} = growInfo(toSt), oldG = growthOf(sv0);
   setTimeout(() => whenFree(() => growCeremony({key:breed, name:b.dog, fromSt, toSt, what, oldG, newG:AGE_G, acc:accessory, reward})), 900);
   S.fanfare(); setTimeout(() => { say('Youpi !', 'big'); jump(6); }, 900);
   rig.head.localToWorld(headTop.set(0, 0.3, 0)); for (let i = 0; i < 10; i++) setTimeout(() => floatIcon(headTop, i % 2 ? 'star' : 'calins', i % 3 === 0), 400 + i * 70);
@@ -4542,7 +4543,7 @@ const eob = t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + 
 const fem = () => BREEDS[breed].fem ? 'e' : '';
 const dogN = () => BREEDS[breed].dog;
 const modalEl = document.getElementById('modal');
-function whenFree(fn) { const ok = modalEl.hidden && !document.getElementById('photoCard') && document.getElementById('start').hidden && (mode === 'cuddle' || mode === 'play') && !napping() && !D.target && tutStep < 0 && document.getElementById('panel').hidden && album.hidden; if (ok) fn(); else setTimeout(() => whenFree(fn), 500); }
+function whenFree(fn) { const ok = !GROWC.on && modalEl.hidden && !document.getElementById('photoCard') && document.getElementById('start').hidden && (mode === 'cuddle' || mode === 'play') && !napping() && !D.target && tutStep < 0 && document.getElementById('panel').hidden && album.hidden; if (ok) fn(); else setTimeout(() => whenFree(fn), 500); }
 
 Object.assign(ICON, {
   clip:'<svg viewBox="0 0 40 40"><rect x="8" y="6" width="24" height="30" rx="4" fill="#fff" stroke="#3b2a1e" stroke-width="3"/><rect x="14" y="3" width="12" height="7" rx="3" fill="#ffc94a" stroke="#3b2a1e" stroke-width="2.6"/><path d="M12.5 18l3 3 5-6M12.5 28l3 3 5-6" fill="none" stroke="#5fae4e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 19h4M24 29h4" stroke="#3b2a1e" stroke-width="2.6" stroke-linecap="round"/></svg>',
