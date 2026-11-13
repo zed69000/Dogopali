@@ -739,7 +739,9 @@ const BREEDS = {
 };
 // Nouvelle DA (planches de modèle) : grosse tête, grands yeux, collier rouge et médaille en os, proportions trapues
 { const B = BREEDS, RED = 0xd8402e, NOSE = 0x3b2418;
-  Object.assign(B.beagle, {R:0.33, L:0.44, leg:0.2, legT:1.4, hr:0.43, m:{len:0.19, r:0.155, w:1.2}, jowl:1, chestPuff:1, tailK:1.3, headUp:0.16, earLen:0.8, earW:0.3, eyeK:1.22, collar:RED, saddle:0x7b4a2a, tailColor:0xc98a45, lowerFace:0xfaf3e6, nose:NOSE, noseK:0.8});
+  { const CR = 0xd8c2ae, OR = 0xb5621c;   // crème (jamais de blanc pur) et orangé de la planche
+    Object.assign(B.beagle, {R:0.33, L:0.44, leg:0.2, legT:1.4, hr:0.43, m:{len:0.21, r:0.16, w:1.25}, jowl:1, chestPuff:1, headUp:0.16, v2:1, earLen:0.74, earW:0.23, eyeK:1.08,
+      collar:0xb5261c, coat:OR, head:OR, thigh:OR, tailColor:OR, ear:0x984f1b, saddle:0x673416, belly:CR, chest:CR, legs:CR, muz:CR, blaze:CR, lowerFace:CR, tailTip:CR, tail:'curve', nose:0x40251a, noseK:0.98, brow:0x8a4a18}); }
   Object.assign(B.labrador, {coat:0xe9b558, head:0xe9b558, thigh:0xe9b558, legs:0xe9b558, tailColor:0xe9b558, ear:0xdfa64a, belly:0xfbe3b0, chest:0xfbe3b0, muz:0xfbe3b0, lowerFace:0xfbe3b0, brow:0xd09a48,
     R:0.34, L:0.46, leg:0.18, hr:0.43, m:{len:0.15, r:0.17, w:1.22}, earLen:0.66, earW:0.28, eyeK:1.2, collar:RED, nose:NOSE, noseK:0.8});
   Object.assign(B.bouledogue, {coat:0xe2b07c, head:0xe2b07c, thigh:0xe2b07c, legs:0xe2b07c, tailColor:0xe2b07c, ear:0xe2b07c, earIn:0xf2a9a0, belly:0xf6e6cf, chest:0xf6e6cf, muz:0x5a4030, mask:0x5a4030, blaze:0xf2d6b0,
@@ -875,10 +877,10 @@ function drop(len, w) {
   });
 }
 // oreille tombante : fine à l'attache, large et ronde en bas (planches)
-function earDrop(len, w) {
-  return G(`e${len}_${w}`, () => {
+function earDrop(len, w, ex = 1.7, rd = 0.8) {
+  return G(`e${len}_${w}_${ex}_${rd}`, () => {
     const pts = [];
-    for (let i = 14; i >= 0; i--) { const t = i / 14; pts.push(new THREE.Vector2(w * Math.pow(Math.sin(PI * Math.pow(t, 1.7)), 0.8) + 1e-4, -len * t)); }
+    for (let i = 28; i >= 0; i--) { const t = i / 28; pts.push(new THREE.Vector2(w * Math.pow(Math.sin(PI * Math.pow(t, ex)), rd) + 1e-4, -len * t)); }
     return new THREE.LatheGeometry(pts, 16);
   });
 }
@@ -1065,8 +1067,10 @@ function skinBody(rig, b, o) {
     const hp = at(rig.hips), sp = at(rig.spine), mid = hp.map((v, i) => (v + sp[i]) / 2);
     const prims = [E(0, hp, [R, R * 0.95, R], b.coat, 0), Cp(0, hp, mid, R * 0.97, R * 0.98, b.coat, 0.02), Cp(1, mid, sp, R * 0.98, R * 0.99, b.coat, 0.02),
       E(2, at(rig.spine, 0, 0.01, 0), [R * 1.06, R * 1.04, R], b.coat, 0.03), E(3, at(rig.neck), [R * 0.62, R * 0.72, R * 0.62], b.head, 0.06),
-      E(4, at(rig.head), [hr, hr * 0.94, hr * 0.96], b.head, 0.05),
-      Cp(4, at(rig.head, 0, my, mz), at(rig.head, 0, my, mz + m.len), m.r * 1.05, m.r * 0.92, b.muz, 0.035, [m.w, 0.92, 1])];
+      E(4, at(rig.head), b.v2 ? [hr * 1.04, hr * 0.93, hr] : [hr, hr * 0.94, hr * 0.96], b.head, 0.05)];
+    if (b.v2) { prims.push(E(4, at(rig.head, 0, my, mz + m.len * 0.5), [m.r * m.w, m.r * 0.9, m.len * 0.5 + m.r * 0.7], b.muz, 0.09));   // museau doux, fondu dans le visage
+      [-1, 1].forEach(s2 => prims.push(E(4, at(rig.head, s2 * m.r * 0.46, my - m.r * 0.3, mz + m.len + m.r * 0.2), [m.r * 0.56, m.r * 0.5, m.r * 0.52], b.muz, 0.05))); }   // les deux babines
+    else prims.push(Cp(4, at(rig.head, 0, my, mz), at(rig.head, 0, my, mz + m.len), m.r * 1.05, m.r * 0.92, b.muz, 0.035, [m.w, 0.92, 1]));
     if (b.jowl) [-1, 1].forEach(s2 => prims.push(E(4, at(rig.head, s2 * hr * 0.46, -hr * 0.4, hr * 0.34), [hr * 0.44, hr * 0.38, hr * 0.44], b.head, 0.05)));   // bas du visage large (planche)
     if (b.chestPuff) prims.push(E(2, at(rig.spine, 0, -R * 0.18, R * 0.52), [R * 0.74, R * 0.8, R * 0.62], b.chest, 0.05));   // poitrail bombé
     if (b.cheeks) [-1, 1].forEach(s2 => prims.push(E(4, at(rig.head, s2 * hr * 0.62, -hr * 0.36, hr * 0.12), [hr * 0.42, hr * 0.38, hr * 0.38], b.cheeks, 0.03)));
@@ -1091,8 +1095,8 @@ function skinBody(rig, b, o) {
     if (b.belly !== b.coat) P2(1, at(rig.hips, 0, -R * 0.36, L * 0.5), [R * 0.8, R * 0.66, (L + R) * 0.62], b.belly);
     if (b.chest !== b.coat) P2(1, at(rig.spine, 0, -R * 0.12, R * 0.48), [R * 0.78, R * 0.86, R * 0.62], b.chest);
     if (b.faceMask) P2(1, at(rig.head, 0, -hr * 0.28, hr * 0.4), [hr * 0.84, hr * 0.56, hr * 0.62], b.faceMask);
-    if (b.lowerFace) P2(1, at(rig.head, 0, -hr * 0.36, hr * 0.5), b.jowl ? [hr * 0.98, hr * 0.5, hr * 0.66] : [hr * 0.66, hr * 0.44, hr * 0.5], b.lowerFace);
-    if (b.blaze) P2(1, at(rig.head, 0, hr * 0.12, hr * 0.5), [hr * 0.17, hr * 0.86, hr * 0.55], b.blaze);
+    if (b.lowerFace) P2(1, at(rig.head, 0, -hr * 0.36, hr * 0.5), b.v2 ? [hr * 0.7, hr * 0.5, hr * 0.66] : [hr * 0.66, hr * 0.44, hr * 0.5], b.lowerFace);
+    if (b.blaze) P2(1, at(rig.head, 0, hr * 0.12, hr * 0.5), [hr * (b.v2 ? 0.13 : 0.17), hr * 0.86, hr * 0.55], b.blaze);
     if (b.mask && b.muz !== b.mask) P2(1, at(rig.head, 0, my, mz + m.len * 0.5), [m.r * m.w * 1.1, m.r, m.r], b.mask);
     C = SKIN.cache[ck] = {g, mat:skinMatFor(paints)};
   }
@@ -1158,10 +1162,12 @@ function buildDogInner(key, b) {
   const nk = b.noseK || 1, nose = ell(head, m.r * 0.52 * Math.min(m.w, 1.25) * nk, m.r * 0.38 * nk, m.r * 0.34 * nk, b.nose, [0, my + m.r * 0.52, tip - m.r * 0.08], {outline:false}); rig.nose = nose;
   ell(nose, 0.28, 0.25, 0.3, basic(0xffffff, 0.85), [0.3, 0.45, 0.6], {outline:false, shadow:false});
   // petite bouche en « w »
-  [-1, 1].forEach(s => mesh(head, G('mouth' + m.r, () => new THREE.TorusGeometry(m.r * 0.26, 0.008, 4, 10, PI)), basic(0x3b2a1e), {outline:false, shadow:false, p:[s * m.r * 0.26, my - m.r * 0.3, tip - m.r * 0.18], r:[0.2, 0, PI]}));
+  if (!b.v2) [-1, 1].forEach(s => mesh(head, G('mouth' + m.r, () => new THREE.TorusGeometry(m.r * 0.26, 0.008, 4, 10, PI)), basic(0x3b2a1e), {outline:false, shadow:false, p:[s * m.r * 0.26, my - m.r * 0.3, tip - m.r * 0.18], r:[0.2, 0, PI]}));
+  if (b.v2) mesh(head, G('smile' + m.r, () => new THREE.TorusGeometry(m.r * 0.5, 0.014, 5, 18, PI * 0.72).rotateZ(PI * 1.14)), basic(0x5a2f1c), {outline:false, shadow:false, p:[0, my - m.r * 0.42, mz + m.len + m.r * 0.66], r:[0.5, 0, 0]});   // un seul sourire net
   const jaw = grp(head, [0, my - m.r * 0.5, mz + m.r * 0.1]);
-  ell(jaw, m.r * 0.78 * m.w, m.r * 0.3, m.len * 0.5 + m.r * 0.6, 0x5a2630, [0, m.r * 0.18, m.len * 0.5 + m.r * 0.15], {outline:false});
-  mesh(jaw, along(m.r * 0.72, m.r * 0.66, Math.max(0.03, m.len * 0.85)), b.muz, {s:[m.w * 0.95, 0.62, 1], p:[0, 0, 0]});
+  const mouthIn = ell(jaw, m.r * 0.78 * m.w, m.r * 0.3, m.len * 0.5 + m.r * 0.6, 0x5a2630, [0, m.r * 0.18, m.len * 0.5 + m.r * 0.15], {outline:false});
+  const jawM = mesh(jaw, along(m.r * 0.72, m.r * 0.66, Math.max(0.03, m.len * 0.85)), b.muz, {s:[m.w * 0.95, 0.62, 1], p:[0, 0, 0]});
+  if (b.v2) { rig.mouthIn = mouthIn; rig.jawLine = jawM.children[0]; }
   const tPivot = grp(jaw, [0, m.r * 0.3, m.len * 0.75 + m.r * 0.3]);
   const tongue = ell(tPivot, m.r * 0.5, m.r * 0.14, m.r * 0.75, 0xf27b8c, [0, 0, m.r * 0.35], {ow:0.08});
   ell(tongue, 0.06, 1.05, 0.7, basic(0xd85a6f), [0, 0.1, 0.1], {outline:false, shadow:false});
@@ -1171,18 +1177,19 @@ function buildDogInner(key, b) {
   // yeux
   const er = hr * 0.2 * (b.eyeK || 1);
   [-1, 1].forEach(s => {
-    const d = new V3(s * 0.5, 0.1, 0.86).normalize();   // yeux plus écartés (planches)
-    const eg = grp(head, d.clone().multiplyScalar(hr * 0.92).toArray());
+    const d = (b.v2 ? new V3(s * 0.45, 0.07, 0.89) : new V3(s * 0.5, 0.1, 0.86)).normalize();   // yeux plus écartés (planches)
+    const eg = grp(head, d.clone().multiplyScalar(hr * (b.v2 ? 1.0 : 0.92)).toArray());
     eg.rotation.order = 'YXZ'; eg.rotation.set(-Math.asin(d.y), Math.atan2(d.x, d.z), 0);
     const ball = grp(eg);
     if (b.eyeColor) { ell(ball, er, er * 1.15, er * 0.5, b.eyeColor, [0, 0, 0], {ow:0.12}); ell(ball, er * 0.55, er * 0.66, er * 0.32, 0x14100e, [0, 0, er * 0.28], {outline:false}); }
-    else ell(ball, er, er * 1.12, er * 0.5, 0x2a1912, [0, 0, 0], {ow:0.1});
+    else ell(ball, er, er * (b.v2 ? 1.02 : 1.12), er * 0.5, 0x2a1912, [0, 0, 0], {ow:0.1});
     ell(ball, er * 0.42, er * 0.44, er * 0.2, basic(0xffffff), [er * 0.3, er * 0.4, er * 0.42], {outline:false, shadow:false});
     ell(ball, er * 0.17, er * 0.17, er * 0.1, basic(0xffffff), [-er * 0.36, -er * 0.4, er * 0.44], {outline:false, shadow:false});
     const arc = mesh(eg, G('arc' + er, () => new THREE.TorusGeometry(er * 0.75, er * 0.16, 6, 14, PI)), basic(0x14100e), {outline:false, shadow:false, p:[0, -er * 0.25, er * 0.15]});
     arc.visible = false;
     const brow = mesh(eg, G('brow' + er, () => taper(er * 0.12, er * 0.12, er * 0.9).clone().rotateZ(PI / 2).translate(er * 0.45, 0, 0)), b.brow, {outline:false, p:[0, er * 1.55, er * 0.05]});
     const blush = ell(eg, er * 0.85, er * 0.45, er * 0.2, basic(0xff7d95, 0.45), [s * er * 0.25, -er * 1.6, -er * 0.12], {outline:false, shadow:false});
+    if (b.v2) { blush.visible = false; rig.browHide = true; }
     rig.eyes.push(ball); rig.arcs.push(arc); rig.brows.push({brow, s}); rig.blush.push(blush);
   });
 
@@ -1190,8 +1197,9 @@ function buildDogInner(key, b) {
   const earPivot = (p, rest, stiff) => { const pv = grp(head, p); const e = {pv, rx:rest[0], rz:rest[1], x:rest[0], z:rest[2] ?? rest[1], vx:0, vz:0, stiff, s:Math.sign(p[0])}; e.z = rest[1]; rig.ears.push(e); return pv; };
   [-1, 1].forEach(s => {
     if (b.ears === 'flop') {
-      const pv = earPivot([s * hr * 0.78, hr * 0.62, -hr * 0.06], [-0.1, s * 0.38], 0);
-      mesh(pv, earDrop(b.earLen, b.earW), b.ear, {s:[0.34, 1, 1], p:[s * 0.035, -0.03, 0], ow:0.06});
+      const pv = b.v2 ? earPivot([s * hr * 0.84, hr * 0.42, hr * 0.0], [-0.04, s * 0.42], 0) : earPivot([s * hr * 0.78, hr * 0.62, -hr * 0.06], [-0.1, s * 0.38], 0);
+      if (b.v2) mesh(pv, earDrop(b.earLen, b.earW, 1.25, 0.5), b.ear, {s:[0.52, 1, 1], p:[s * 0.02, 0.0, 0], r:[0, -s * 0.7, 0], ow:0.06});   // la face large se voit de face comme de profil
+      else mesh(pv, earDrop(b.earLen, b.earW), b.ear, {s:[0.34, 1, 1], p:[s * 0.035, -0.03, 0], ow:0.06});
     } else if (b.ears === 'erect') {
       const pv = earPivot([s * hr * 0.46, hr * 0.68, -hr * 0.12], [-0.12, -s * 0.3], 1);
       mesh(pv, G('cone' + b.earW, () => new THREE.ConeGeometry(b.earW, b.earLen, 16).translate(0, b.earLen / 2, 0)), b.ear, {s:[1, 1, 0.42]});
@@ -1233,6 +1241,9 @@ function buildDogInner(key, b) {
   const tail = grp(hips, [0, R * 0.48, -R * 0.82]); rig.tail = tail;
   const tc = b.tailColor;
   if (b.tail === 'whip') { rig.tailRest = -0.55; mesh(tail, taper(0.07, 0.055, 0.32), tc); ell(tail, 0.075, 0.1, 0.075, b.tailTip, [0, 0.36, 0]); }
+  else if (b.tail === 'curve') { rig.tailRest = -0.5; const N = 30, base = [], top = [];
+    for (let i = 0; i < N; i++) { const t = i / (N - 1), a = t * 1.5, rho = 0.36, r = 0.11 - 0.032 * t; (t < 0.42 ? base : top).push([0, rho * Math.sin(a), rho * (1 - Math.cos(a)), r]); }
+    blob(tail, 'tcb', base, toon(tc, true), {ow:0.06, shadow:true}); blob(tail, 'tct', top, toon(b.tailTip, true), {ow:0.06, shadow:true}); }
   else if (b.tail === 'otter') { rig.tailRest = -1.95; mesh(tail, taper(0.1, 0.05, 0.42), tc); }
   else if (b.tail === 'stub') { rig.tailRest = -0.9; ell(tail, 0.065, 0.08, 0.065, tc, [0, 0.05, 0]); }
   else if (b.tail === 'pompom') { rig.tailRest = -0.35; mesh(tail, taper(0.035, 0.03, 0.2), tc); fluff(tail, [0, 0.26, 0], 0.11, b.fluff, 10); }
@@ -1276,7 +1287,8 @@ function applyJ(rig, J) {
   rig.tongue.scale.z = rig.b.m.r * 0.75 * (1 + J.tongue * 0.7);
   rig.tongue.visible = J.jaw > 0.08 || J.tongue > 0.05;
   rig.eyes.forEach((e, i) => { e.visible = !J.happyEyes; e.scale.y = Math.max(0.06, J.eye); rig.arcs[i].visible = J.happyEyes; });
-  rig.brows.forEach(({brow, s}) => { brow.rotation.z = -s * J.sad * 0.5 + s * J.joy * 0.12; brow.position.y = rig.b.hr * 0.18 * (1.55 + J.browUp * 0.45 + J.sad * 0.15); });
+  if (rig.jawLine) { rig.jawLine.visible = HULL.on && J.jaw > 0.1; rig.mouthIn.visible = J.jaw > 0.06; }
+  rig.brows.forEach(({brow, s}) => { if (rig.browHide) brow.visible = J.sad > 0.15 || J.browUp > 0.3; brow.rotation.z = -s * J.sad * 0.5 + s * J.joy * 0.12; brow.position.y = rig.b.hr * 0.18 * (1.55 + J.browUp * 0.45 + J.sad * 0.15); });
   rig.blush.forEach(bl => bl.scale.x = rig.b.hr * 0.18 * 0.85 * (0.4 + J.blush));
   rig.mud.forEach(md => md.scale.copy(md.userData.s).multiplyScalar(md.userData.gone ? 0.001 : (1 - (md.userData.wash || 0)) * Math.max(0.001, clamp01((J.dirt - (md.userData.th || 0) * 0.75) / 0.25))));
 }
@@ -6534,12 +6546,12 @@ function frameBody(now) {
 applyQuality();
 requestAnimationFrame(frame);
 // outil de dev : un chien rendu de face, de profil et de 3/4 (planches de modèle), avec une expression J au choix
-function modelSheet(key, g = 1, over = {}, size = 360) {
+function modelSheet(key, g = 1, over = {}, size = 360, head = false) {
   const {r2, sc, cam, box, c, sz} = PR; if (!r2) return [];
   r2.setSize(size, size, false); cam.aspect = 1; cam.updateProjectionMatrix();
   const rg = buildDog(key, g); sc.add(rg.root); const J = Object.assign(blankJ(), over); applyJ(rg, J);
   rg.root.rotation.y = 0; rg.root.updateMatrixWorld(true); rg.root.position.y = -groundOffset(rg); rg.root.updateMatrixWorld(true);
-  box.setFromObject(rg.root); box.getCenter(c); box.getSize(sz); const d = Math.max(sz.x, sz.y, sz.z) * 2.1, look = c.clone();
+  box.setFromObject(rg.root); box.getCenter(c); box.getSize(sz); let d = Math.max(sz.x, sz.y, sz.z) * 2.1; const look = c.clone(); if (head) { rg.head.getWorldPosition(look); look.y -= rg.b.hr * rg.b.size * 0.15; d = rg.b.hr * rg.b.size * 6.2; }
   const out = [[0, 0.12], [PI / 2, 0.05], [0.75, 0.3]].map(([a, el]) => {
     cam.position.set(look.x + Math.sin(a) * d, look.y + d * el, look.z + Math.cos(a) * d); cam.lookAt(look);
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
