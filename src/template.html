@@ -984,6 +984,119 @@ function addFur(r) {
   list.forEach(o => { const c = o.material.color.getHex();
     for (let i = 0; i < FUR.layers; i++) { const sh = new THREE.Mesh(o.geometry, o.userData.face ? (faceMats[c + '_' + i] ||= furMat(c, i, mask)) : furMat(c, i)); sh.userData.fur = true; sh.castShadow = false; sh.renderOrder = 1; o.add(sh); } });
 }
+/* ---------- CORPS LISSE : un seul mesh continu (surface implicite des formes du chien, fondues en douceur),
+   skinné sur les os du chien (jusqu'à 4 os par sommet, poids doux aux articulations) ---------- */
+const SKIN = {on:true, cache:{}};
+try { if (localStorage.getItem('nounou-skin') === '0') SKIN.on = false; } catch (e) {}
+function lineMatSkin(ow = 0.06) {
+  const key = 's' + ow.toFixed(3); if (HULL.mats[key]) return HULL.mats[key];
+  const m = new THREE.MeshBasicMaterial({color:0x3b2a1e, side:THREE.BackSide, skinning:true}); m.userData.hull = true; m.visible = HULL.on;
+  m.onBeforeCompile = sh => { sh.uniforms.uOw = {value:ow}; sh.uniforms.uCap = HULL.cap;
+    sh.vertexShader = 'attribute vec3 sn;\nuniform float uOw;\nuniform float uCap;\n' + sh.vertexShader.replace('#include <project_vertex>', 'vec3 snS = sn;\n#ifdef USE_SKINNING\n snS = ( bindMatrixInverse * ( boneMatX * skinWeight.x + boneMatY * skinWeight.y + boneMatZ * skinWeight.z + boneMatW * skinWeight.w ) * bindMatrix * vec4( sn, 0.0 ) ).xyz;\n#endif\nvec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );\n vec3 offV = mat3( modelViewMatrix ) * ( snS * uOw );\n float dep = max( -mvPosition.z, 0.05 ), wpp = uCap * dep, hl = max( length( offV ), 1e-6 );\n float px = clamp( hl / wpp, 1.4, mix( 3.0, 1.5, smoothstep( 8.0, 30.0, dep ) ) );\n offV *= px * wpp / hl;\n mvPosition.xyz += offV;\n gl_Position = projectionMatrix * mvPosition;'); };
+  m.customProgramCacheKey = () => 'hullS'; return HULL.mats[key] = m;
+}
+// matière du corps : couleur de base par sommet + taches peintes (selle, ventre, liste, masque…) nettes et sans crénelage
+function skinMatFor(paints) {
+  const m = new THREE.MeshToonMaterial({color:0xffffff, gradientMap:grad, vertexColors:true, skinning:true}), n = paints.length;
+  m.extensions = {derivatives:true};
+  m.onBeforeCompile = sh => {
+    if (n) { sh.uniforms.uPc = {value:paints.map(q => new V3(...q.c))}; sh.uniforms.uPr = {value:paints.map(q => new V3(...q.r))}; sh.uniforms.uPk = {value:paints.map(q => new THREE.Color(q.col))}; }
+    sh.vertexShader = 'varying vec3 vRp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vRp = position;');
+    sh.fragmentShader = 'varying vec3 vRp;\n' + (n ? `uniform vec3 uPc[${n}]; uniform vec3 uPr[${n}]; uniform vec3 uPk[${n}];\n` : '') + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' + (n ? `for (int i = 0; i < ${n}; i++) { float d = length((vRp - uPc[i]) / uPr[i]); float e = max(fwidth(d), 1e-4); diffuseColor.rgb = mix(diffuseColor.rgb, uPk[i], 1.0 - smoothstep(1.0 - e, 1.0 + e, d)); }` : ''))
+      .replace('#include <tonemapping_fragment>', 'float rimF = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);\n gl_FragColor.rgb += vec3(1.0, 0.96, 0.88) * pow(rimF, 3.2) * 0.2;\n#include <tonemapping_fragment>');
+  };
+  m.customProgramCacheKey = () => 'dogskin' + n; return m;
+}
+const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+function sdPrim(P, x, y, z) {
+  if (P.t === 'e') { const ax = (x - P.c[0]) / P.r[0], ay = (y - P.c[1]) / P.r[1], az = (z - P.c[2]) / P.r[2], k0 = Math.hypot(ax, ay, az), k1 = Math.hypot(ax / P.r[0], ay / P.r[1], az / P.r[2]); return k1 < 1e-9 ? -P.rm : k0 * (k0 - 1) / k1; }
+  let px = x - P.a[0], py = y - P.a[1], pz = z - P.a[2]; if (P.s) { px /= P.s[0]; py /= P.s[1]; pz /= P.s[2]; }
+  const h = Math.max(0, Math.min(1, (px * P.d[0] + py * P.d[1] + pz * P.d[2]) / P.dd)), dx = px - P.d[0] * h, dy = py - P.d[1] * h, dz = pz - P.d[2] * h;
+  return (Math.hypot(dx, dy, dz) - (P.ra + (P.rb - P.ra) * h)) * (P.s ? P.sm : 1);
+}
+// surface implicite → mesh (« surface nets » : un sommet par cellule traversée, recalé sur la surface)
+function polygonize(prims, h) {
+  prims.forEach(P => { if (P.t === 'e') { P.rm = Math.min(...P.r); P.lo = P.c.map((v, i) => v - P.r[i]); P.hi = P.c.map((v, i) => v + P.r[i]); }
+    else { const s = P.s || [1, 1, 1], rr = Math.max(P.ra, P.rb); P.d = [0, 1, 2].map(i => (P.b[i] - P.a[i]) / s[i]); P.dd = Math.max(1e-9, P.d[0] ** 2 + P.d[1] ** 2 + P.d[2] ** 2); P.sm = P.s ? Math.min(...P.s) : 1;
+      P.lo = [0, 1, 2].map(i => Math.min(P.a[i], P.b[i]) - rr * s[i]); P.hi = [0, 1, 2].map(i => Math.max(P.a[i], P.b[i]) + rr * s[i]); } });
+  const field = (x, y, z) => { let d = 1e9; for (let i = 0; i < prims.length; i++) { const P = prims[i], ex = Math.max(P.lo[0] - x, 0, x - P.hi[0]), ey = Math.max(P.lo[1] - y, 0, y - P.hi[1]), ez = Math.max(P.lo[2] - z, 0, z - P.hi[2]);
+    if (d < 1e8 && Math.hypot(ex, ey, ez) > d + P.k) continue; d = smin(d, sdPrim(P, x, y, z), P.k); } return d; };
+  const lo = [0, 1, 2].map(i => Math.min(...prims.map(P => P.lo[i])) - 2 * h), hi = [0, 1, 2].map(i => Math.max(...prims.map(P => P.hi[i])) + 2 * h);
+  const nx = Math.ceil((hi[0] - lo[0]) / h) + 1, ny = Math.ceil((hi[1] - lo[1]) / h) + 1, nz = Math.ceil((hi[2] - lo[2]) / h) + 1, F = new Float32Array(nx * ny * nz), I = (i, j, k) => (k * ny + j) * nx + i;
+  // grille grossière d'abord : on n'affine que près de la surface (le champ ne varie pas plus vite que la distance)
+  const S3 = 4, mx = Math.ceil((nx - 1) / S3) + 1, my2 = Math.ceil((ny - 1) / S3) + 1, mz2 = Math.ceil((nz - 1) / S3) + 1, Fc = new Float32Array(mx * my2 * mz2), Ic = (i, j, k) => (k * my2 + j) * mx + i, band = S3 * h * 1.25;
+  for (let k = 0; k < mz2; k++) for (let j = 0; j < my2; j++) for (let i = 0; i < mx; i++) Fc[Ic(i, j, k)] = field(lo[0] + i * S3 * h, lo[1] + j * S3 * h, lo[2] + k * S3 * h);
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = Fc[Ic(Math.round(i / S3), Math.round(j / S3), Math.round(k / S3))];
+    F[I(i, j, k)] = Math.abs(c) > band ? c : field(lo[0] + i * h, lo[1] + j * h, lo[2] + k * h); }
+  const cx = nx - 1, cy = ny - 1, C = (i, j, k) => (k * cy + j) * cx + i, vid = new Int32Array(cx * cy * (nz - 1)).fill(-1), pos = [];
+  const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]], O = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]], v = new Float32Array(8);
+  for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    let neg = 0; for (let c = 0; c < 8; c++) { v[c] = F[I(i + O[c][0], j + O[c][1], k + O[c][2])]; if (v[c] < 0) neg++; }
+    if (neg === 0 || neg === 8) continue; let sx = 0, sy = 0, sz = 0, n = 0;
+    E.forEach(([a, b]) => { if ((v[a] < 0) === (v[b] < 0)) return; const t = v[a] / (v[a] - v[b]); sx += O[a][0] + (O[b][0] - O[a][0]) * t; sy += O[a][1] + (O[b][1] - O[a][1]) * t; sz += O[a][2] + (O[b][2] - O[a][2]) * t; n++; });
+    vid[C(i, j, k)] = pos.length / 3; pos.push(lo[0] + (i + sx / n) * h, lo[1] + (j + sy / n) * h, lo[2] + (k + sz / n) * h); }
+  const idx = [], quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) idx.push(a, d, c, a, c, b); else idx.push(a, b, c, a, c, d); };
+  for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const f0 = F[I(i, j, k)] < 0;
+    if (i < nx - 1 && f0 !== (F[I(i + 1, j, k)] < 0)) quad(vid[C(i, j - 1, k - 1)], vid[C(i, j, k - 1)], vid[C(i, j, k)], vid[C(i, j - 1, k)], !f0);
+    if (j < ny - 1 && f0 !== (F[I(i, j + 1, k)] < 0)) quad(vid[C(i - 1, j, k - 1)], vid[C(i - 1, j, k)], vid[C(i, j, k)], vid[C(i, j, k - 1)], !f0);
+    if (k < nz - 1 && f0 !== (F[I(i, j, k + 1)] < 0)) quad(vid[C(i - 1, j - 1, k)], vid[C(i, j - 1, k)], vid[C(i, j, k)], vid[C(i - 1, j, k)], !f0);
+  }
+  // recalage sur la surface et normales lisses (gradient du champ)
+  const nor = new Float32Array(pos.length), e = h * 0.5;
+  const sF = (x, y, z) => { const fx = Math.min(nx - 1.001, Math.max(0, (x - lo[0]) / h)), fy = Math.min(ny - 1.001, Math.max(0, (y - lo[1]) / h)), fz = Math.min(nz - 1.001, Math.max(0, (z - lo[2]) / h)), i = fx | 0, j = fy | 0, k = fz | 0, u = fx - i, v2 = fy - j, w = fz - k;
+    const c00 = F[I(i, j, k)] * (1 - u) + F[I(i + 1, j, k)] * u, c10 = F[I(i, j + 1, k)] * (1 - u) + F[I(i + 1, j + 1, k)] * u, c01 = F[I(i, j, k + 1)] * (1 - u) + F[I(i + 1, j, k + 1)] * u, c11 = F[I(i, j + 1, k + 1)] * (1 - u) + F[I(i + 1, j + 1, k + 1)] * u;
+    return (c00 * (1 - v2) + c10 * v2) * (1 - w) + (c01 * (1 - v2) + c11 * v2) * w; };
+  for (let q = 0; q < pos.length; q += 3) { let x = pos[q], y = pos[q + 1], z = pos[q + 2], gx = 0, gy = 0, gz = 0;   // recalage sur la surface et normales lisses (gradient de la grille)
+    for (let it = 0; it < 2; it++) { const f = sF(x, y, z); gx = sF(x + e, y, z) - sF(x - e, y, z); gy = sF(x, y + e, z) - sF(x, y - e, z); gz = sF(x, y, z + e) - sF(x, y, z - e);
+      const g2 = (gx * gx + gy * gy + gz * gz) / (4 * e * e); if (g2 < 1e-8) break; const s2 = f / g2 / (2 * e); if (it < 1) { x -= gx * s2; y -= gy * s2; z -= gz * s2; } }
+    pos[q] = x; pos[q + 1] = y; pos[q + 2] = z; const l = Math.hypot(gx, gy, gz) || 1; nor[q] = gx / l; nor[q + 1] = gy / l; nor[q + 2] = gz / l; }
+  return {pos, nor, idx};
+}
+function skinBody(rig, b, o) {
+  const {R, L, hr, m, lt, up, low, pawR, my, mz} = o, root = rig.root; root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), at = (g, x = 0, y = 0, z = 0) => new V3(x, y, z).applyMatrix4(g.matrixWorld).applyMatrix4(inv).toArray();
+  const bones = [rig.hips, rig.spine, rig.chest, rig.neck, rig.head, ...rig.legs.map(l => l.u), ...rig.legs.map(l => l.l)];
+  const ck = [rig.key, R, L, hr, b.leg, lt, m.len, m.r, m.w, pawR].map(v => typeof v === 'number' ? v.toFixed(4) : v).join('_');
+  let C = SKIN.cache[ck];
+  if (!C) {
+    const E = (bone, c, r, col, k) => ({t:'e', bone, c, r, col, k}), Cp = (bone, a, bb, ra, rb, col, k, sc) => ({t:'c', bone, a, b:bb, ra, rb, col, k, s:sc});
+    const hp = at(rig.hips), sp = at(rig.spine), mid = hp.map((v, i) => (v + sp[i]) / 2);
+    const prims = [E(0, hp, [R, R * 0.95, R], b.coat, 0), Cp(0, hp, mid, R * 0.97, R * 0.98, b.coat, 0.02), Cp(1, mid, sp, R * 0.98, R * 0.99, b.coat, 0.02),
+      E(2, at(rig.spine, 0, 0.01, 0), [R * 1.06, R * 1.04, R], b.coat, 0.03), E(3, at(rig.neck), [R * 0.62, R * 0.72, R * 0.62], b.head, 0.06),
+      E(4, at(rig.head), [hr, hr * 0.94, hr * 0.96], b.head, 0.05),
+      Cp(4, at(rig.head, 0, my, mz), at(rig.head, 0, my, mz + m.len), m.r * 1.05, m.r * 0.92, b.muz, 0.035, [m.w, 0.92, 1])];
+    if (b.cheeks) [-1, 1].forEach(s2 => prims.push(E(4, at(rig.head, s2 * hr * 0.62, -hr * 0.36, hr * 0.12), [hr * 0.42, hr * 0.38, hr * 0.38], b.cheeks, 0.03)));
+    rig.legs.forEach((lg, i) => { const hind = i >= 2, U = at(lg.u), Lp = at(lg.l);
+      prims.push(hind ? E(5 + i, at(lg.u, 0, -0.02, 0), [R * 0.48, R * 0.62, R * 0.56], b.thigh, 0.06) : E(5 + i, at(lg.u, 0, -0.01, 0), [R * 0.36, R * 0.45, R * 0.4], b.coat, 0.06),
+        Cp(5 + i, U, Lp, 0.092 * lt, 0.082 * lt, b.legs, 0.03), Cp(9 + i, Lp, at(lg.l, 0, -low * 0.9, 0), 0.082 * lt, 0.079 * lt, b.legs, 0.025),
+        E(9 + i, at(lg.l, 0, -low - pawR * 0.05, 0.025), [pawR, pawR * 0.62, pawR * 1.25], b.legs, 0.035)); });
+    const {pos, nor, idx} = polygonize(prims, 0.023), n = pos.length / 3;
+    const col = new Float32Array(n * 3), si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), acc = new Float32Array(bones.length), dp = new Float32Array(prims.length), tau = 0.024, cc = new THREE.Color();
+    for (let q = 0; q < n; q++) { const x = pos[q * 3], y = pos[q * 3 + 1], z = pos[q * 3 + 2]; let dmin = 1e9, best = 0;
+      prims.forEach((P, i) => { dp[i] = sdPrim(P, x, y, z); if (dp[i] < dmin) { dmin = dp[i]; best = i; } });
+      cc.setHex(prims[best].col); col[q * 3] = cc.r; col[q * 3 + 1] = cc.g; col[q * 3 + 2] = cc.b;
+      acc.fill(0); prims.forEach((P, i) => { acc[P.bone] += Math.exp(-(dp[i] - dmin) / tau); });
+      const order = [...acc.keys()].sort((a2, b2) => acc[b2] - acc[a2]).slice(0, 4); let tot = 0; order.forEach(bi => tot += acc[bi]);
+      order.forEach((bi, k) => { si[q * 4 + k] = bi; sw[q * 4 + k] = acc[bi] / tot; }); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4)); g.setIndex(idx); g.computeBoundingSphere();
+    const Rr = g.boundingSphere.radius, sn = new Float32Array(nor.length); for (let i = 0; i < nor.length; i++) sn[i] = nor[i] * Rr; g.setAttribute('sn', new THREE.BufferAttribute(sn, 3));
+    const paints = [], P2 = (on, c, r, c2) => { if (on !== undefined && on !== null) paints.push({c, r, col:c2}); };
+    if (b.saddle) P2(1, at(rig.hips, 0, R * 0.2, L * 0.42), [R * 1.05, R * 0.78, (L + R) * 0.62], b.saddle);
+    if (b.belly !== b.coat) P2(1, at(rig.hips, 0, -R * 0.36, L * 0.5), [R * 0.8, R * 0.66, (L + R) * 0.62], b.belly);
+    if (b.chest !== b.coat) P2(1, at(rig.spine, 0, -R * 0.12, R * 0.48), [R * 0.78, R * 0.86, R * 0.62], b.chest);
+    if (b.faceMask) P2(1, at(rig.head, 0, -hr * 0.28, hr * 0.4), [hr * 0.84, hr * 0.56, hr * 0.62], b.faceMask);
+    if (b.lowerFace) P2(1, at(rig.head, 0, -hr * 0.36, hr * 0.5), [hr * 0.66, hr * 0.44, hr * 0.5], b.lowerFace);
+    if (b.blaze) P2(1, at(rig.head, 0, hr * 0.12, hr * 0.5), [hr * 0.17, hr * 0.86, hr * 0.55], b.blaze);
+    if (b.mask && b.muz !== b.mask) P2(1, at(rig.head, 0, my, mz + m.len * 0.5), [m.r * m.w * 1.1, m.r, m.r], b.mask);
+    C = SKIN.cache[ck] = {g, mat:skinMatFor(paints)};
+  }
+  const sk = new THREE.Skeleton(bones), body = new THREE.SkinnedMesh(C.g, C.mat); body.castShadow = true; body.frustumCulled = false; root.add(body); body.bind(sk, root.matrixWorld);
+  const line = new THREE.SkinnedMesh(C.g, lineMatSkin(0.05)); line.castShadow = false; line.frustumCulled = false; root.add(line); line.bind(sk, root.matrixWorld);
+  rig.skin = body; if (!b.fluff) rig.top = hr * 0.94;
+}
 function buildDogInner(key, b) {
   const R = b.R, L = b.L, hr = b.hr, m = b.m, lt = b.legT || 1;
   const rig = {key, b, ears:[], markers:[], mud:[], legs:[], eyes:[], brows:[], arcs:[], blush:[]};
@@ -996,20 +1109,20 @@ function buildDogInner(key, b) {
   Object.assign(rig, {rollP, hips, spine});
 
   // corps
-  ell(hips, R, R * 0.95, R, b.coat, [0, 0, 0]);
-  mesh(hips, along(R * 0.98, R, L), b.coat, {s:[1, 0.97, 1]});
-  rig.chest = ell(spine, R * 1.06, R * 1.04, R * 1.0, b.coat, [0, 0.01, 0]); rig.chestS = rig.chest.scale.clone();
+  const SK = SKIN.on;
+  if (!SK) { ell(hips, R, R * 0.95, R, b.coat, [0, 0, 0]); mesh(hips, along(R * 0.98, R, L), b.coat, {s:[1, 0.97, 1]}); }
+  rig.chest = SK ? grp(spine, [0, 0.01, 0]) : ell(spine, R * 1.06, R * 1.04, R * 1.0, b.coat, [0, 0.01, 0]); rig.chestS = rig.chest.scale.clone();   // corps lissé : le poitrail est un os (la respiration le gonfle)
   rig.legLen = up + low + pawR * 0.6;
-  if (b.belly !== b.coat) ell(hips, R * 0.8, R * 0.66, (L + R) * 0.62, b.belly, [0, -R * 0.36, L * 0.5], {ow:0.04});
-  if (b.chest !== b.coat) ell(spine, R * 0.78, R * 0.86, R * 0.62, b.chest, [0, -R * 0.12, R * 0.48], {ow:0.04});
-  if (b.saddle) { ell(hips, R * 1.05, R * 0.78, (L + R) * 0.62, b.saddle, [0, R * 0.2, L * 0.42], {ow:0.035}); }
+  if (!SK && b.belly !== b.coat) ell(hips, R * 0.8, R * 0.66, (L + R) * 0.62, b.belly, [0, -R * 0.36, L * 0.5], {ow:0.04});
+  if (!SK && b.chest !== b.coat) ell(spine, R * 0.78, R * 0.86, R * 0.62, b.chest, [0, -R * 0.12, R * 0.48], {ow:0.04});
+  if (!SK && b.saddle) { ell(hips, R * 1.05, R * 0.78, (L + R) * 0.62, b.saddle, [0, R * 0.2, L * 0.42], {ow:0.035}); }
   if (b.fluff) { // caniche : crinière, rosettes
     fluff(spine, [0, R * 0.05, R * 0.15], R * 1.5, b.fluff, 18);
     fluff(hips, [0, R * 0.15, -R * 0.1], R * 1.0, b.fluff, 12);
   }
   // collier
   const neckFill = grp(spine, [0, R * 0.62, R * 0.55]); rig.neckFill = neckFill; rig.R = R; rig.hr = hr;
-  ell(neckFill, R * 0.62, R * 0.72, R * 0.62, b.head, [0, 0, 0], {outline:false});
+  if (!SK) ell(neckFill, R * 0.62, R * 0.72, R * 0.62, b.head, [0, 0, 0], {outline:false});
   const collar = mesh(neckFill, G('collar' + R, () => new THREE.TorusGeometry(R * 0.68, 0.042, 8, 28)), b.collar, {r:[-0.9, 0, 0], p:[0, -R * 0.05, -R * 0.02], ow:0.22});
   { const tag = grp(neckFill, [0, -R * 0.82, R * 0.66]); tag.scale.setScalar(1.5); rig.tag = tag;   // médaille en os, comme les planches
     ell(tag, 0.012, 0.012, 0.012, 0xe0a92a, [0, 0.06, 0], {outline:false});
@@ -1024,20 +1137,20 @@ function buildDogInner(key, b) {
   const neck = grp(spine, [0, R * 0.62, R * 0.55]);
   const head = grp(neck, [0, hr * 0.72, hr * 0.32]);
   Object.assign(rig, {neck, head});
-  ell(head, hr, hr * 0.94, hr * 0.96, b.head, [0, 0, 0]);
+  if (!SK) ell(head, hr, hr * 0.94, hr * 0.96, b.head, [0, 0, 0]);
   marker(head, [0, hr, 0]);
-  if (b.blaze) ell(head, hr * 0.17, hr * 0.86, hr * 0.55, b.blaze, [0, hr * 0.12, hr * 0.5], {outline:false});
-  if (b.faceMask) { ell(head, hr * 0.84, hr * 0.56, hr * 0.62, b.faceMask, [0, -hr * 0.28, hr * 0.4], {outline:false});
+  if (!SK && b.blaze) ell(head, hr * 0.17, hr * 0.86, hr * 0.55, b.blaze, [0, hr * 0.12, hr * 0.5], {outline:false});
+  if (b.faceMask) { if (!SK) ell(head, hr * 0.84, hr * 0.56, hr * 0.62, b.faceMask, [0, -hr * 0.28, hr * 0.4], {outline:false});
     [-1, 1].forEach(s => ell(head, hr * 0.13, hr * 0.09, hr * 0.06, b.faceMask, [s * hr * 0.36, hr * 0.42, hr * 0.85], {outline:false})); }
-  if (b.lowerFace) ell(head, hr * 0.66, hr * 0.44, hr * 0.5, b.lowerFace, [0, -hr * 0.36, hr * 0.5], {outline:false});
-  if (b.cheeks) [-1, 1].forEach(s => ell(head, hr * 0.42, hr * 0.38, hr * 0.38, b.cheeks, [s * hr * 0.62, -hr * 0.36, hr * 0.12], {ow:0.05}));
+  if (!SK && b.lowerFace) ell(head, hr * 0.66, hr * 0.44, hr * 0.5, b.lowerFace, [0, -hr * 0.36, hr * 0.5], {outline:false});
+  if (!SK && b.cheeks) [-1, 1].forEach(s => ell(head, hr * 0.42, hr * 0.38, hr * 0.38, b.cheeks, [s * hr * 0.62, -hr * 0.36, hr * 0.12], {ow:0.05}));
   if (b.fluff) fluff(head, [0, hr * 0.8, -hr * 0.05], hr * 0.62, b.fluff, 14);
   if (b.wrinkles) [0, 1].forEach(i => mesh(head, G('wr' + i, () => new THREE.TorusGeometry(hr * (0.16 + i * 0.07), 0.009, 4, 14, PI * 0.7)), basic(0x8a5c38), {outline:false, shadow:false, p:[0, hr * (0.6 + i * 0.1), hr * (0.76 - i * 0.07)], r:[-0.7 - i * 0.2, 0, PI * 0.15]}));
 
   // museau, truffe, mâchoire, langue
   const my = -hr * 0.3, mz = Math.max(hr * 0.5, hr * 0.954 + hr * 0.14 - m.len - m.r * 0.85);   // museau court (bouledogue, chiot) : il dépasse toujours de la tête
-  mesh(head, along(m.r * 1.05, m.r * 0.92, m.len), b.muz, {s:[m.w, 0.92, 1], p:[0, my, mz]});
-  if (b.mask && b.muz !== b.mask) ell(head, m.r * m.w * 1.1, m.r, m.r, b.mask, [0, my, mz + m.len * 0.5]);
+  if (!SK) mesh(head, along(m.r * 1.05, m.r * 0.92, m.len), b.muz, {s:[m.w, 0.92, 1], p:[0, my, mz]});
+  if (!SK && b.mask && b.muz !== b.mask) ell(head, m.r * m.w * 1.1, m.r, m.r, b.mask, [0, my, mz + m.len * 0.5]);
   const tip = mz + m.len + m.r * 0.85;
   const nk = b.noseK || 1, nose = ell(head, m.r * 0.52 * Math.min(m.w, 1.25) * nk, m.r * 0.38 * nk, m.r * 0.34 * nk, b.nose, [0, my + m.r * 0.52, tip - m.r * 0.08], {outline:false}); rig.nose = nose;
   ell(nose, 0.28, 0.25, 0.3, basic(0xffffff, 0.85), [0.3, 0.45, 0.6], {outline:false, shadow:false});
@@ -1099,12 +1212,11 @@ function buildDogInner(key, b) {
   // pattes
   const legAt = (parent, p, hind) => {
     const u = grp(parent, p);
-    if (hind) ell(u, R * 0.48, R * 0.62, R * 0.56, b.thigh, [0, -0.02, 0], {ow:0.05});
-    else ell(u, R * 0.36, R * 0.45, R * 0.4, b.coat, [0, -0.01, 0], {outline:false});
-    mesh(u, limb(0.092 * lt, 0.082 * lt, up), b.legs, {ow:0.08});
+    if (!SK) { if (hind) ell(u, R * 0.48, R * 0.62, R * 0.56, b.thigh, [0, -0.02, 0], {ow:0.05});
+      else ell(u, R * 0.36, R * 0.45, R * 0.4, b.coat, [0, -0.01, 0], {outline:false});
+      mesh(u, limb(0.092 * lt, 0.082 * lt, up), b.legs, {ow:0.08}); }
     const l = grp(u, [0, -up, 0]);
-    mesh(l, limb(0.082 * lt, 0.078 * lt, low), b.legs, {ow:0.08});
-    ell(l, pawR, pawR * 0.62, pawR * 1.25, b.legs, [0, -low - pawR * 0.05, 0.025]);
+    if (!SK) { mesh(l, limb(0.082 * lt, 0.078 * lt, low), b.legs, {ow:0.08}); ell(l, pawR, pawR * 0.62, pawR * 1.25, b.legs, [0, -low - pawR * 0.05, 0.025]); }
     if (b.fluff) fluff(l, [0, -low * 0.72, 0], 0.085, b.fluff, 8, 0.12);
     (rig.paws ||= []).push(marker(l, [0, -low - pawR * 0.62, 0.025]));
     rig.legs.push({u, l});
@@ -1127,6 +1239,7 @@ function buildDogInner(key, b) {
   else if (b.tail === 'plume') { rig.tailRest = -2.3; mesh(tail, taper(0.07, 0.06, 0.24), tc); const t2 = grp(tail, [0, 0.26, 0], [-0.6, 0, 0]);
     mesh(t2, taper(0.065, 0.05, 0.16), tc); ell(t2, 0.07, 0.1, 0.07, b.tailTip, [0, 0.2, 0]); }
 
+  if (SK) skinBody(rig, b, {R, L, hr, m, lt, up, low, pawR, my, mz});
   // taches de boue (selon la propreté)
   const MUD = [0x2e1f13, 0x4a3220];
   const mudAt = (par, p, ax, sz, th) => { const g = grp(par, p);
@@ -6428,6 +6541,6 @@ function modelSheet(key, g = 1, over = {}, size = 360) {
     r2.render(sc, cam); return r2.domElement.toDataURL('image/png'); });
   sc.remove(rg.root); return out;
 }
-window.__dbg = {OCC, HULL, RAYS, AO, placeZones, walkable, cutTo, get GSPOT() { return GSPOT; }, KENNEL, walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
+window.__dbg = {SKIN, OCC, HULL, RAYS, AO, placeZones, walkable, cutTo, get GSPOT() { return GSPOT; }, KENNEL, walkFromGate, nicheSlots, snapNiches, buildSurround, startFamily, litter, setLastLitter:v => lastLitter = v, startContest, CONTEST, get cups() { return cups; }, get tricks() { return tricks; }, get nourStars() { return nourStars; }, set nourStars(v) { nourStars = v; }, nourRank, rankUp, trainRank, FULL, askFull, unlockFull, modelSheet, BREEDS, growCeremony, grow:d => grow(d), get AGE_G() { return AGE_G; }, prepCard, QUAL, applyQuality, PROF, dogState, NOUR, pickup, comeBack, isAway, ENC, buildFence, CAMO, npcBark, addGrow, growOf:()=>gpOf(breed), endWalk, get cam(){return camera}, WX, CRIT, spawnCrit, setWeather, get wxForce(){return wxForce}, set wxForce(v){wxForce=v}, set natForce(v){natForce=v;applyNat();grassTint()}, coach, PACK, startTug, recruitBall, goSleep, wakeNpc, sleeperTap, startToy, stepPairDirector, addNpc, AIM, ball, launch, handPos, aimTarget, launchVel, feint, TITLE, setPet:v=>petDist=v, clearGifts:()=>{giftQueue.length=0;document.getElementById('modal').hidden=true;}, startIntro, startTrain, startWalk, startAgility, command, giveTreat, hop, addXp, WK, AG, get level() { return level; }, get tutStep() { return tutStep; }, setTut:v => { tutStep = v; }, S, goTo:(x,z,run)=>{D.pos.set(-3.5,0,z);D.yaw=PI/2;goTo(new V3(x,0,z),run,0.2,()=>{})}, jump, setTS:v=>TS=v, useItem, useKennel, placed, buy, commit, get sel() { return sel; }, ITEMS, placeItem, counts:()=>({parts:parts.length, foam:foam.length, scene:scene.children.length, clock:+clock.toFixed(2)}), throwBall, addFoamAt:(n)=>{for(let i=0;i<n;i++){const o=rig.spine.children[0];const p=new V3((Math.random()-0.5)*0.5,0.3+Math.random()*0.5,(Math.random()-0.5)*0.4).add(D.pos);addFoam(p,o)}}, clock:()=>clock, hideHint:()=>{petDist=9999;thrown=true}, D, gauges, setBreed, setMode, get rig() { return rig; }, applyJ, blankJ, feed, shake, play, say, CINE, pee, nap, callDog, napping, applyAbsence, AWAY, addPuddle, setAway:v=>awayS=v, afterStart, BATH, toRinse, toBrush, ORB, get pack(){return pack}, npcs, DIG, digStart, digScratch, moundScreen:()=>DIG.mound?toScreen(DIG.mound.position):null, camAt:(px,py,pz,lx,ly,lz,ms)=>{CAMO.pos.set(px,py,pz);CAMO.look.set(lx,ly,lz);CAMO.until=performance.now()+(ms||60000)}, emote:(k)=>emote(rig,k), EMO, furCount:()=>{let n=0;rig.root.traverse(o=>{if(o.userData.fur)n++});return n}, pawGap:()=>{rig.root.updateMatrixWorld(true);const g=-groundOffset(rig);return rig.paws.map(m=>{m.getWorldPosition(tmpV);return +(tmpV.y+g).toFixed(3)}).concat([+(D.sitFix||0).toFixed(3),+(D.lieFix||0).toFixed(3)])}, lowNpc:()=>{const n=npcs[0]; if(n){const g=dogState(n.key).g; g.faim=0.1;}}, switchDog, tryLitter, openPack, topRatios:()=>Object.keys(BREEDS).map(k=>{const r=buildDog(k,1);const t=headTopOf(r);return [k,(t/r.hr).toFixed(3)]}), setHK:v=>{HEAD_TOP_K=v;redress()}, wear:(k,acc)=>{accessory=acc;setBreed(k);if(!accOwned.includes(acc))accOwned.push(acc);redress()}, poopScreens:()=>poops.map(p=>{p.getWorldPosition(tmpV);return toScreen(tmpV)}), handScreen:()=>toScreen(handPos(new V3())), get mode(){return mode}, lab:(post, an, dur)=>{D.target=null;D.anim=null;D.posture=post||'sit';D.postureUntil=0;D.faceYaw=0;D.yaw=0;D.lastPet=post==='roll'?1e9:-99;if(an)play(an,dur||30,null,{side:1});}, dogScreen:()=>{rig.spine.getWorldPosition(tmpV);return toScreen(tmpV)}, rareMoment, takePhoto, welcomeBack, openMissions, mission, runDaily, SLOW, buildSeason, combo, get daily() { return daily; }, discover, pf, favSpot, favToy, get photos() { return photos; }};
 })();
 </script>
